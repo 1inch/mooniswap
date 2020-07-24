@@ -22,6 +22,15 @@ async function timeIncreaseTo (seconds) {
     await time.increaseTo(seconds);
 }
 
+async function checkBalances(mooniswap, token, expectedBalance, expectedAdditionBalance, expectedRemovalBalance) {
+    const balance = await token.balanceOf(mooniswap.address);
+    const additionBalance = await mooniswap.getBalanceOnAddition(token.address);
+    const removalBalance = await mooniswap.getBalanceOnRemoval(token.address);
+    expect(balance).to.be.bignumber.equal(expectedBalance);
+    expect(additionBalance).to.be.bignumber.equal(expectedAdditionBalance);
+    expect(removalBalance).to.be.bignumber.equal(expectedRemovalBalance);
+}
+
 const Mooniswap = artifacts.require('Mooniswap');
 const TokenMock = artifacts.require('TokenMock');
 
@@ -244,7 +253,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const started = (await time.latest()).addn(10);
                 await timeIncreaseTo(started);
 
-                // The first swap of 1 WETH to 145 DAI
+                // The first swap of 1 WETH to 135 DAI
                 const received1 = await trackReceivedToken(
                     this.DAI,
                     wallet2,
@@ -280,7 +289,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(wethRemovalBalance4).to.be.bignumber.equal(money.weth('2'));
                 expect(result4).to.be.bignumber.equal(money.weth('1'));
 
-                // The second swap of 270 DAI to 0.5 ETH
+                // swap back 135 DAI to 1 ETH
                 const received2 = await trackReceivedToken(
                     this.WETH,
                     wallet2,
@@ -290,11 +299,87 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
             });
         });
 
-        // describe('Deposits after swaps', async function () {
-        //     beforeEach(async function () {
-        //         await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet1 });
-        //         expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
-        //     });
-        // });
+        describe('Deposits after swaps', async function () {
+            beforeEach(async function () {
+                await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet1 });
+                expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
+            });
+
+            it('should deposit imbalanced amount after swap', async function () {
+                const started = (await time.latest()).addn(10);
+                await timeIncreaseTo(started);
+
+                await this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, { from: wallet2 });
+
+                await timeIncreaseTo(started.add((await this.mooniswap.DECAY_PERIOD()).divn(2)));
+
+                const received2 = await trackReceivedToken(
+                    this.mooniswap,
+                    wallet2,
+                    () => this.mooniswap.deposit(
+                        [money.weth('2'), money.dai('135')],
+                        money.dai('270'),
+                        { from: wallet2 }
+                    )
+                );
+
+                expect(received2).to.be.bignumber.equal(money.dai('270'));
+            });
+
+            it.only('should update rates after imbalanced deposit', async function () {
+                const started = (await time.latest()).addn(10);
+                await timeIncreaseTo(started);
+
+                await this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, { from: wallet2 });
+
+                await checkBalances(this.mooniswap, this.WETH, money.weth('2'), money.weth('2'), money.weth('1'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('135'), money.dai('270'), money.dai('135'));
+
+                await timeIncreaseTo(started.add((await this.mooniswap.DECAY_PERIOD()).divn(2)));
+
+                await checkBalances(this.mooniswap, this.WETH, money.weth('2'), money.weth('2'), money.weth('1.5'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('135'), money.dai('202.5'), money.dai('135'));
+
+                const received = await trackReceivedToken(
+                    this.mooniswap,
+                    wallet2,
+                    () => this.mooniswap.deposit(
+                        [money.weth('2'), money.dai('135')],
+                        money.dai('270'),
+                        { from: wallet2 }
+                    )
+                );
+                expect(received).to.be.bignumber.equal(money.dai('270'));
+
+                await checkBalances(this.mooniswap, this.WETH, money.weth('4'), money.weth('4'), money.weth('3.5'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('270'), money.dai('337.5'), money.dai('270'));
+
+                // swap back 135 DAI to 1 ETH
+                const received2 = await trackReceivedToken(
+                    this.WETH,
+                    wallet2,
+                    () => this.mooniswap.swap(
+                        this.DAI.address,
+                        this.WETH.address,
+                        money.dai('135'),
+                        money.zero,
+                        { from: wallet2 }
+                    ),
+                );
+                expect(received2).to.be.bignumber.equal(money.weth('1'));
+
+                await checkBalances(this.mooniswap, this.WETH, money.weth('3'), money.weth('4'), money.weth('2.5'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('405'), money.dai('472.5'), money.dai('270'));
+            });
+        });
+
+        describe('Withdrawals', async function () {
+            beforeEach(async function () {
+                await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet1 });
+                expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
+            });
+
+            // TODO
+        });
     });
 });

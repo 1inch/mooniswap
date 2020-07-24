@@ -143,16 +143,29 @@ contract Mooniswap is ERC20, Ownable {
 
         worstShare = type(uint256).max;
         for (uint i = 0; i < amounts.length; i++) {
+            IERC20 token = tokens[i];
             require(amounts[i] > 0, "Mooniswap: amount is zero");
 
-            uint256 preBalance = tokens[i].balanceOf(address(this));
-            tokens[i].safeTransferFrom(msg.sender, address(this), amounts[i]);
-            uint256 confirmed = tokens[i].balanceOf(address(this)).sub(preBalance);
+            uint256 tokenAdditonBalance = getBalanceOnAddition(token);
+            uint256 tokenRemovalBalance = getBalanceOnRemoval(token);
+
+            uint256 preBalance = token.balanceOf(address(this));
+            token.safeTransferFrom(msg.sender, address(this), amounts[i]);
+            uint256 confirmed = token.balanceOf(address(this)).sub(preBalance);
 
             uint256 share = (preBalance == 0) ? totalSupply : totalSupply.mul(confirmed).div(preBalance);
             if (share < worstShare) {
                 worstShare = share;
             }
+
+            virtualBalancesForAddition[token] = VirtualBalance({
+                balance: tokenAdditonBalance.add(confirmed),
+                time: block.timestamp
+            });
+            virtualBalancesForRemoval[token] = VirtualBalance({
+                balance: tokenRemovalBalance.add(confirmed),
+                time: block.timestamp
+            });
         }
 
         require(worstShare >= minReturn, "Mooniswap: result is not enough");
@@ -166,8 +179,22 @@ contract Mooniswap is ERC20, Ownable {
 
         uint256 totalSupply = totalSupply();
         for (uint i = 0; i < tokens.length; i++) {
-            uint256 value = tokens[i].balanceOf(address(this)).mul(amount).div(totalSupply);
-            tokens[i].safeTransfer(msg.sender, value);
+            IERC20 token = tokens[i];
+
+            uint256 tokenAdditonBalance = getBalanceOnAddition(token);
+            uint256 tokenRemovalBalance = getBalanceOnRemoval(token);
+
+            uint256 value = token.balanceOf(address(this)).mul(amount).div(totalSupply);
+            token.safeTransfer(msg.sender, value);
+
+            virtualBalancesForAddition[token] = VirtualBalance({
+                balance: tokenAdditonBalance.sub(value),
+                time: block.timestamp
+            });
+            virtualBalancesForRemoval[token] = VirtualBalance({
+                balance: tokenRemovalBalance.sub(value),
+                time: block.timestamp
+            });
         }
 
         emit Withdrawn(msg.sender, amount);
