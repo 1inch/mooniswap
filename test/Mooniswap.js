@@ -430,8 +430,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
 
                 const daiBalance = await this.DAI.balanceOf(this.mooniswap.address);
                 const wethBalance = await this.WETH.balanceOf(this.mooniswap.address);
-                expect(daiBalance).to.be.bignumber.equal(money.dai('764'));  // Uniswap balance would be 763.675
-                expect(wethBalance).to.be.bignumber.gt(money.weth('1.445'));  // Uniswap balance would be 1.414
+                expect(daiBalance).to.be.bignumber.equal(money.dai('764')); // Uniswap balance would be 763.675
+                expect(wethBalance).to.be.bignumber.gt(money.weth('1.445')); // Uniswap balance would be 1.414
             });
         });
 
