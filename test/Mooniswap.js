@@ -89,8 +89,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
             await this.DAI.approve(this.mooniswap.address, money.dai('2700'), { from: wallet2 });
         });
 
-        describe('Inital deposits', async function () {
-            it('should be denied with length not eqaul to 2', async function () {
+        describe('Initial deposits', async function () {
+            it('should be denied with length not equal to 2', async function () {
                 await expectRevert(
                     this.mooniswap.deposit([], money.zero, { from: wallet1 }),
                     'Mooniswap: wrong amounts length',
