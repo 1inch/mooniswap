@@ -326,7 +326,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(received2).to.be.bignumber.equal(money.dai('270'));
             });
 
-            it.only('should update rates after imbalanced deposit', async function () {
+            it('should update rates after imbalanced deposit', async function () {
                 const started = (await time.latest()).addn(10);
                 await timeIncreaseTo(started);
 
