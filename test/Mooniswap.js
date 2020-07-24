@@ -241,6 +241,9 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(daiRemovalBalance1).to.be.bignumber.equal(money.dai('270'));
                 expect(result1).to.be.bignumber.equal(money.dai('135'));
 
+                const started = (await time.latest()).addn(10);
+                await timeIncreaseTo(started);
+
                 // The first swap of 1 WETH to 145 DAI
                 const received1 = await trackReceivedToken(
                     this.DAI,
@@ -248,7 +251,6 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                     () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, { from: wallet2 }),
                 );
                 expect(received1).to.be.bignumber.equal(money.dai('135'));
-                const started = await time.latest();
 
                 // Checks at the start of the decay period
                 const daiAdditionBalance2 = await this.mooniswap.getBalanceOnAddition(this.DAI.address);
@@ -258,7 +260,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(wethRemovalBalance2).to.be.bignumber.equal(money.dai('1'));
                 expect(result2).to.be.bignumber.equal(money.weth('0.5'));
 
-                await timeIncreaseTo(started.add((await this.mooniswap.DECAY_PERIOD()).divn(2).subn(1)));
+                await timeIncreaseTo(started.add((await this.mooniswap.DECAY_PERIOD()).divn(2)));
 
                 // Checks at the middle of the decay period
                 const daiAdditionBalance3 = await this.mooniswap.getBalanceOnAddition(this.DAI.address);
@@ -268,7 +270,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(wethRemovalBalance3).to.be.bignumber.equal(money.weth('1.5'));
                 expect(result3).to.be.bignumber.equal(money.weth('0.75'));
 
-                await timeIncreaseTo(started.add(await this.mooniswap.DECAY_PERIOD()).subn(1));
+                await timeIncreaseTo(started.add(await this.mooniswap.DECAY_PERIOD()));
 
                 // Checks at the end of the decay period
                 const daiAdditionBalance4 = await this.mooniswap.getBalanceOnAddition(this.DAI.address);
