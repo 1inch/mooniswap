@@ -22,7 +22,7 @@ async function timeIncreaseTo (seconds) {
     await time.increaseTo(seconds);
 }
 
-async function checkBalances(mooniswap, token, expectedBalance, expectedAdditionBalance, expectedRemovalBalance) {
+async function checkBalances (mooniswap, token, expectedBalance, expectedAdditionBalance, expectedRemovalBalance) {
     const balance = await token.balanceOf(mooniswap.address);
     const additionBalance = await mooniswap.getBalanceOnAddition(token.address);
     const removalBalance = await mooniswap.getBalanceOnRemoval(token.address);
@@ -319,8 +319,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                     () => this.mooniswap.deposit(
                         [money.weth('2'), money.dai('135')],
                         money.dai('270'),
-                        { from: wallet2 }
-                    )
+                        { from: wallet2 },
+                    ),
                 );
 
                 expect(received2).to.be.bignumber.equal(money.dai('270'));
@@ -346,8 +346,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                     () => this.mooniswap.deposit(
                         [money.weth('2'), money.dai('135')],
                         money.dai('270'),
-                        { from: wallet2 }
-                    )
+                        { from: wallet2 },
+                    ),
                 );
                 expect(received).to.be.bignumber.equal(money.dai('270'));
 
@@ -363,7 +363,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('135'),
                         money.zero,
-                        { from: wallet2 }
+                        { from: wallet2 },
                     ),
                 );
                 expect(received2).to.be.bignumber.equal(money.weth('1'));
