@@ -118,6 +118,14 @@ contract Mooniswap is ERC20, Ownable {
             balance: dstRemovalBalance.sub(result),
             time: block.timestamp
         });
+
+        emit Swapped(
+            msg.sender,
+            srcToken,
+            dstToken,
+            confirmed,
+            result
+        );
     }
 
     function deposit(uint256[] memory amounts, uint256 minReturn) external returns(uint256 worstShare) {

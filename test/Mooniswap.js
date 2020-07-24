@@ -287,5 +287,12 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(received2).to.be.bignumber.equal(money.weth('1'));
             });
         });
+
+        // describe('Deposits after swaps', async function () {
+        //     beforeEach(async function () {
+        //         await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet1 });
+        //         expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
+        //     });
+        // });
     });
 });
