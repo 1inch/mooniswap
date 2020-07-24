@@ -121,8 +121,8 @@ contract Mooniswap is ERC20, Ownable {
 
         emit Swapped(
             msg.sender,
-            srcToken,
-            dstToken,
+            address(srcToken),
+            address(dstToken),
             confirmed,
             result
         );
