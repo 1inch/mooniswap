@@ -186,6 +186,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
             beforeEach(async function () {
                 await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet1 });
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
+                await timeIncreaseTo((await time.latest()).add(await this.mooniswap.DECAY_PERIOD()));
             });
 
             it('should give 50% of tokenB for 100% of tokenA swap as designed by x*y=k', async function () {
@@ -303,6 +304,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
             beforeEach(async function () {
                 await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet1 });
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
+                await timeIncreaseTo((await time.latest()).add(await this.mooniswap.DECAY_PERIOD()));
             });
 
             it('should deposit imbalanced amount after swap', async function () {
@@ -326,7 +328,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(received2).to.be.bignumber.equal(money.dai('270'));
             });
 
-            it('should update rates after imbalanced deposit', async function () {
+            it.only('should update rates after imbalanced deposit', async function () {
                 const started = (await time.latest()).addn(10);
                 await timeIncreaseTo(started);
 
@@ -351,8 +353,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 );
                 expect(received).to.be.bignumber.equal(money.dai('270'));
 
-                await checkBalances(this.mooniswap, this.WETH, money.weth('4'), money.weth('4'), money.weth('3.5'));
-                await checkBalances(this.mooniswap, this.DAI, money.dai('270'), money.dai('337.5'), money.dai('270'));
+                await checkBalances(this.mooniswap, this.WETH, money.weth('4'), money.weth('2'), money.weth('1.5'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('270'), money.dai('202.5'), money.dai('135'));
 
                 // swap back 135 DAI to 1 ETH
                 const received2 = await trackReceivedToken(
@@ -361,15 +363,15 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                     () => this.mooniswap.swap(
                         this.DAI.address,
                         this.WETH.address,
-                        money.dai('135'),
+                        money.dai('101.25'),
                         money.zero,
                         { from: wallet2 },
                     ),
                 );
-                expect(received2).to.be.bignumber.equal(money.weth('1'));
+                expect(received2).to.be.bignumber.equal(money.weth('0.5'));
 
-                await checkBalances(this.mooniswap, this.WETH, money.weth('3'), money.weth('4'), money.weth('2.5'));
-                await checkBalances(this.mooniswap, this.DAI, money.dai('405'), money.dai('472.5'), money.dai('270'));
+                await checkBalances(this.mooniswap, this.WETH, money.weth('3.5'), money.weth('2'), money.weth('1'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('371.25'), money.dai('303.75'), money.dai('135'));
             });
         });
 

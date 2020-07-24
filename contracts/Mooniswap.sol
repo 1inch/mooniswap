@@ -159,11 +159,11 @@ contract Mooniswap is ERC20, Ownable {
             }
 
             virtualBalancesForAddition[token] = VirtualBalance({
-                balance: tokenAdditonBalance.add(confirmed),
+                balance: tokenAdditonBalance, // .add(confirmed),
                 time: block.timestamp
             });
             virtualBalancesForRemoval[token] = VirtualBalance({
-                balance: tokenRemovalBalance.add(confirmed),
+                balance: tokenRemovalBalance, // .add(confirmed),
                 time: block.timestamp
             });
         }
