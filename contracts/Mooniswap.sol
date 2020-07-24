@@ -69,13 +69,13 @@ contract Mooniswap is ERC20, Ownable {
         public
         ERC20(name, symbol)
     {
-        require(_tokens.length == 2, "Mooniswap: supports only 2 tokens");
-        require(bytes(name).length > 0, "Mooniswap: name should not be empty");
-        require(bytes(symbol).length > 0, "Mooniswap: symbol should not be empty");
+        require(_tokens.length == 2, "Mooniswap: only 2 tokens allowed");
+        require(bytes(name).length > 0, "Mooniswap: name is empty");
+        require(bytes(symbol).length > 0, "Mooniswap: symbol is empty");
 
         tokens = _tokens;
         for (uint i = 0; i < _tokens.length; i++) {
-            require(!isToken[_tokens[i]], "Mooniswap: token duplicates are not allowed");
+            require(!isToken[_tokens[i]], "Mooniswap: duplicate tokens");
             isToken[_tokens[i]] = true;
         }
     }
@@ -106,7 +106,7 @@ contract Mooniswap is ERC20, Ownable {
         uint256 confirmed = srcToken.balanceOf(address(this)).sub(preBalance);
 
         result = _getReturn(srcToken, dstToken, confirmed, confirmed);
-        require(result >= minReturn, "Mooniswap: return amount less than minReturn");
+        require(result >= minReturn, "Mooniswap: return is not enough");
         dstToken.safeTransfer(msg.sender, result);
 
         // Update virtual balances to the same direction
@@ -129,7 +129,7 @@ contract Mooniswap is ERC20, Ownable {
     }
 
     function deposit(uint256[] memory amounts, uint256 minReturn) external returns(uint256 worstShare) {
-        require(amounts.length == tokens.length, "Mooniswap: amounts length invalid");
+        require(amounts.length == tokens.length, "Mooniswap: wrong amounts length");
 
         uint256 totalSupply = totalSupply();
         if (totalSupply == 0) {
@@ -143,7 +143,7 @@ contract Mooniswap is ERC20, Ownable {
 
         worstShare = type(uint256).max;
         for (uint i = 0; i < amounts.length; i++) {
-            require(amounts[i] > 0, "Mooniswap: zero ammount not allowed");
+            require(amounts[i] > 0, "Mooniswap: amount is zero");
 
             uint256 preBalance = tokens[i].balanceOf(address(this));
             tokens[i].safeTransferFrom(msg.sender, address(this), amounts[i]);
@@ -155,7 +155,7 @@ contract Mooniswap is ERC20, Ownable {
             }
         }
 
-        require(worstShare >= minReturn, "Mooniswap: result was less than minReturn");
+        require(worstShare >= minReturn, "Mooniswap: result is not enough");
         _mint(msg.sender, worstShare);
 
         emit Deposited(msg.sender, worstShare);
