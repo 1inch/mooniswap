@@ -14,8 +14,8 @@ contract Mooniswap is ERC20, Ownable {
     using SafeERC20 for IERC20;
 
     struct VirtualBalance {
-        uint256 balance;
-        uint256 time;
+        uint216 balance;
+        uint40 time;
     }
 
     event Deposited(
@@ -47,8 +47,8 @@ contract Mooniswap is ERC20, Ownable {
         uint256 tokenBalance = getBalanceOnRemoval(token);
         _;
         virtualBalancesForRemoval[token] = VirtualBalance({
-            balance: tokenBalance,
-            time: block.timestamp
+            balance: uint216(tokenBalance),
+            time: uint40(block.timestamp)
         });
     }
 
@@ -56,8 +56,8 @@ contract Mooniswap is ERC20, Ownable {
         uint256 tokenBalance = getBalanceOnAddition(token);
         _;
         virtualBalancesForAddition[token] = VirtualBalance({
-            balance: tokenBalance,
-            time: block.timestamp
+            balance: uint216(tokenBalance),
+            time: uint40(block.timestamp)
         });
     }
 
@@ -111,12 +111,12 @@ contract Mooniswap is ERC20, Ownable {
 
         // Update virtual balances to the same direction
         virtualBalancesForAddition[srcToken] = VirtualBalance({
-            balance: srcAdditonBalance.add(confirmed),
-            time: block.timestamp
+            balance: uint216(srcAdditonBalance.add(confirmed)),
+            time: uint40(block.timestamp)
         });
         virtualBalancesForRemoval[dstToken] = VirtualBalance({
-            balance: dstRemovalBalance.sub(result),
-            time: block.timestamp
+            balance: uint216(dstRemovalBalance.sub(result)),
+            time: uint40(block.timestamp)
         });
 
         emit Swapped(
@@ -159,12 +159,12 @@ contract Mooniswap is ERC20, Ownable {
             }
 
             virtualBalancesForAddition[token] = VirtualBalance({
-                balance: tokenAdditonBalance, // .add(confirmed),
-                time: block.timestamp
+                balance: uint216(tokenAdditonBalance),
+                time: uint40(block.timestamp)
             });
             virtualBalancesForRemoval[token] = VirtualBalance({
-                balance: tokenRemovalBalance, // .add(confirmed),
-                time: block.timestamp
+                balance: uint216(tokenRemovalBalance),
+                time: uint40(block.timestamp)
             });
         }
 
@@ -188,12 +188,12 @@ contract Mooniswap is ERC20, Ownable {
             token.safeTransfer(msg.sender, value);
 
             virtualBalancesForAddition[token] = VirtualBalance({
-                balance: tokenAdditonBalance.sub(value),
-                time: block.timestamp
+                balance: uint216(tokenAdditonBalance.sub(value)),
+                time: uint40(block.timestamp)
             });
             virtualBalancesForRemoval[token] = VirtualBalance({
-                balance: tokenRemovalBalance.sub(value),
-                time: block.timestamp
+                balance: uint216(tokenRemovalBalance.sub(value)),
+                time: uint40(block.timestamp)
             });
         }
 
@@ -209,7 +209,7 @@ contract Mooniswap is ERC20, Ownable {
     {
         uint256 timePassed = Math.min(DECAY_PERIOD, block.timestamp.sub(virtualBalance.time));
         uint256 timeRemain = DECAY_PERIOD.sub(timePassed);
-        return virtualBalance.balance.mul(timeRemain).add(
+        return uint256(virtualBalance.balance).mul(timeRemain).add(
             realBalance.mul(timePassed)
         ).div(DECAY_PERIOD);
     }
