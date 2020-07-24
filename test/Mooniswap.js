@@ -6,7 +6,7 @@ const money = {
     zero: ether('0'),
     weth: ether,
     dai: ether,
-    usdc: (value) => ether(value).div(1e12)
+    usdc: (value) => ether(value).divn(1e12)
 };
 
 async function trackReceivedToken(token, wallet, txPromise) {
