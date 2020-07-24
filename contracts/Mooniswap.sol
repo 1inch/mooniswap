@@ -175,9 +175,9 @@ contract Mooniswap is ERC20, Ownable {
     }
 
     function withdraw(uint256 amount) external {
+        uint256 totalSupply = totalSupply();
         _burn(msg.sender, amount);
 
-        uint256 totalSupply = totalSupply();
         for (uint i = 0; i < tokens.length; i++) {
             IERC20 token = tokens[i];
 
