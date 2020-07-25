@@ -24,12 +24,6 @@ library VirtualBalance {
         self.time = uint40(block.timestamp);
     }
 
-    function sync(VirtualBalance.Data storage self, uint256 balance) internal {
-        if (block.timestamp < uint256(self.time).add(DECAY_PERIOD)) {
-            update(self, balance);
-        }
-    }
-
     function current(VirtualBalance.Data memory self, uint256 realBalance) internal view returns(uint256) {
         uint256 timePassed = Math.min(DECAY_PERIOD, block.timestamp.sub(self.time));
         uint256 timeRemain = DECAY_PERIOD.sub(timePassed);
@@ -120,8 +114,13 @@ contract Mooniswap is ERC20, Ownable {
         virtualBalancesForRemoval[srcToken].update(srcRemovalBalance);
         virtualBalancesForAddition[dstToken].update(dstAdditionBalance);
         // Update virtual balances to the same direction
-        virtualBalancesForAddition[srcToken].sync(srcAdditonBalance.add(confirmed));
-        virtualBalancesForRemoval[dstToken].sync(dstRemovalBalance.sub(result));
+
+        if (srcAdditonBalance != srcBalance) {
+            virtualBalancesForAddition[srcToken].update(srcAdditonBalance.add(confirmed));
+        }
+        if (dstRemovalBalance != dstBalance) {
+            virtualBalancesForRemoval[dstToken].update(dstRemovalBalance.sub(result));
+        }
 
         emit Swapped(msg.sender, address(srcToken), address(dstToken), confirmed, result);
     }
