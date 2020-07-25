@@ -151,7 +151,6 @@ contract Mooniswap is ERC20, Ownable {
             uint256 removalBalance = virtualBalancesForRemoval[token].current(preBalance);
             uint256 additionBalance = virtualBalancesForAddition[token].current(preBalance);
 
-            preBalance = token.balanceOf(address(this));
             token.safeTransferFrom(msg.sender, address(this), amounts[i]);
             uint256 confirmed = token.balanceOf(address(this)).sub(preBalance);
 
