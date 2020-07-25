@@ -31,10 +31,6 @@ async function checkBalances (mooniswap, token, expectedBalance, expectedAdditio
     expect(removalBalance).to.be.bignumber.equal(expectedRemovalBalance);
 }
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 const Mooniswap = artifacts.require('Mooniswap');
 const TokenMock = artifacts.require('TokenMock');
 
