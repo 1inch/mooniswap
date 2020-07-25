@@ -299,7 +299,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(received2).to.be.bignumber.equal(money.weth('1'));
             });
 
-            it('should do multiple cross swaps', async function() {
+            it('should do multiple cross swaps', async function () {
                 const started = (await time.latest()).addn(10);
                 await timeIncreaseTo(started);
 
@@ -311,8 +311,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.DAI.address,
                         money.weth('1'),
                         money.zero,
-                        { from: wallet2 }
-                    )
+                        { from: wallet2 },
+                    ),
                 )).to.be.bignumber.equal(money.dai('135'));
 
                 await checkBalances(this.mooniswap, this.WETH, money.weth('2'), money.weth('2'), money.weth('1'));
@@ -326,8 +326,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('270'),
                         money.zero,
-                        { from: wallet2 }
-                    )
+                        { from: wallet2 },
+                    ),
                 )).to.be.bignumber.equal(money.weth('0.5'));
 
                 await checkBalances(this.mooniswap, this.WETH, money.weth('1.5'), money.weth('2'), money.weth('0.5'));
@@ -346,8 +346,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.DAI.address,
                         money.weth('1.75'),
                         money.zero,
-                        { from: wallet2 }
-                    )
+                        { from: wallet2 },
+                    ),
                 )).to.be.bignumber.equal(money.dai('135'));
 
                 await checkBalances(this.mooniswap, this.WETH, money.weth('3.25'), money.weth('3.5'), money.weth('1'));
@@ -361,13 +361,13 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('472.5'),
                         money.zero,
-                        { from: wallet2 }
-                    )
+                        { from: wallet2 },
+                    ),
                 )).to.be.bignumber.equal(money.weth('0.5'));
 
                 await checkBalances(this.mooniswap, this.WETH, money.weth('2.75'), money.weth('3.5'), money.weth('0.5'));
                 await checkBalances(this.mooniswap, this.DAI, money.dai('742.5'), money.dai('945'), money.dai('135'));
-            })
+            });
         });
 
         describe('Deposits after swaps', async function () {
