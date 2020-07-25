@@ -31,3 +31,4 @@ jobs:
       - run: yarn
       - run: yarn lint
       - run: yarn test
+      - run: yarn coverage

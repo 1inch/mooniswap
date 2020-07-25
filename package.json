@@ -30,7 +30,8 @@
     },
     "scripts": {
         "test": "scripts/test.sh",
-        "coverage": "scripts/coverage.sh && cat coverage/lcov.info | coveralls",
+        "coverage": "scripts/coverage.sh",
+        "coveralls": "scripts/coverage.sh && cat coverage/lcov.info | coveralls",
         "lint:js": "eslint .",
         "lint:js:fix": "eslint . --fix",
         "lint:sol": "solhint --max-warnings 0 \"contracts/**/*.sol\"",
