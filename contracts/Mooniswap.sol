@@ -25,7 +25,7 @@ library VirtualBalance {
     }
 
     function sync(VirtualBalance.Data storage self, uint256 balance) internal {
-        if (self.time > block.timestamp - DECAY_PERIOD) {
+        if (block.timestamp < uint256(self.time).add(DECAY_PERIOD)) {
             update(self, balance);
         }
     }
