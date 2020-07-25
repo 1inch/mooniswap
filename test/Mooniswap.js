@@ -435,7 +435,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
             });
         });
 
-        describe.only('Withdrawals', async function () {
+        describe('Withdrawals', async function () {
             beforeEach(async function () {
                 await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet1 });
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
