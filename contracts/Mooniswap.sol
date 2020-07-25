@@ -128,11 +128,12 @@ contract Mooniswap is ERC20, Ownable {
         );
     }
 
-    function deposit(uint256[] memory amounts, uint256 minReturn) external returns(uint256 worstShare) {
+    function deposit(uint256[] memory amounts, uint256 minReturn) external returns(uint256 fairShare) {
         require(amounts.length == tokens.length, "Mooniswap: wrong amounts length");
 
         uint256 totalSupply = totalSupply();
-        if (totalSupply == 0) {
+        bool initialDepsoit = (totalSupply == 0);
+        if (initialDepsoit) {
             // Use the greatest token amount for the first deposit
             for (uint i = 0; i < amounts.length; i++) {
                 if (amounts[i] > totalSupply) {
@@ -141,37 +142,21 @@ contract Mooniswap is ERC20, Ownable {
             }
         }
 
-        worstShare = type(uint256).max;
+        fairShare = type(uint256).max;
         for (uint i = 0; i < amounts.length; i++) {
-            IERC20 token = tokens[i];
             require(amounts[i] > 0, "Mooniswap: amount is zero");
 
-            uint256 tokenAdditonBalance = getBalanceOnAddition(token);
-            uint256 tokenRemovalBalance = getBalanceOnRemoval(token);
-
-            uint256 preBalance = token.balanceOf(address(this));
-            token.safeTransferFrom(msg.sender, address(this), amounts[i]);
-            uint256 confirmed = token.balanceOf(address(this)).sub(preBalance);
-
-            uint256 share = (preBalance == 0) ? totalSupply : totalSupply.mul(confirmed).div(preBalance);
-            if (share < worstShare) {
-                worstShare = share;
+            (uint256 confirmed, uint256 preBalance) = _depositToken(tokens[i], amounts[i]);
+            uint256 share = initialDepsoit ? totalSupply : totalSupply.mul(confirmed).div(preBalance);
+            if (share < fairShare) {
+                fairShare = share;
             }
-
-            virtualBalancesForAddition[token] = VirtualBalance({
-                balance: uint216(tokenAdditonBalance),
-                time: uint40(block.timestamp)
-            });
-            virtualBalancesForRemoval[token] = VirtualBalance({
-                balance: uint216(tokenRemovalBalance),
-                time: uint40(block.timestamp)
-            });
         }
 
-        require(worstShare >= minReturn, "Mooniswap: result is not enough");
-        _mint(msg.sender, worstShare);
+        require(fairShare >= minReturn, "Mooniswap: result is not enough");
+        _mint(msg.sender, fairShare);
 
-        emit Deposited(msg.sender, worstShare);
+        emit Deposited(msg.sender, fairShare);
     }
 
     function withdraw(uint256 amount) external {
@@ -218,11 +203,11 @@ contract Mooniswap is ERC20, Ownable {
         internal
         saveVirtualBalanceForRemoval(token)
         saveVirtualBalanceForAddition(token)
-        returns(uint256)
+        returns(uint256 confirmed, uint256 preBalance)
     {
-        uint256 tokenBalance = token.balanceOf(address(this));
+        preBalance = token.balanceOf(address(this));
         token.safeTransferFrom(msg.sender, address(this), amount);
-        return token.balanceOf(address(this)).sub(tokenBalance);
+        confirmed = token.balanceOf(address(this)).sub(preBalance);
     }
 
     function _getReturn(IERC20 srcToken, IERC20 dstToken, uint256 amount, uint256 subSrcDeposited) internal view returns(uint256) {
