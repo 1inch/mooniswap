@@ -9,14 +9,33 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 
-contract Mooniswap is ERC20, Ownable {
+library VirtualBalance {
     using SafeMath for uint256;
-    using SafeERC20 for IERC20;
 
-    struct VirtualBalance {
+    struct Data {
         uint216 balance;
         uint40 time;
     }
+
+    function update(VirtualBalance.Data storage self, uint256 balance) internal {
+        self.balance = uint216(balance);
+        self.time = uint40(block.timestamp);
+    }
+
+    function current(VirtualBalance.Data memory self, uint256 realBalance, uint256 decayPeriod) internal view returns(uint256) {
+        uint256 timePassed = Math.min(decayPeriod, block.timestamp.sub(self.time));
+        uint256 timeRemain = decayPeriod.sub(timePassed);
+        return uint256(self.balance).mul(timeRemain).add(
+            realBalance.mul(timePassed)
+        ).div(decayPeriod);
+    }
+}
+
+
+contract Mooniswap is ERC20, Ownable {
+    using SafeMath for uint256;
+    using SafeERC20 for IERC20;
+    using VirtualBalance for VirtualBalance.Data;
 
     event Deposited(
         address indexed account,
@@ -40,26 +59,8 @@ contract Mooniswap is ERC20, Ownable {
 
     IERC20[] public tokens;
     mapping(IERC20 => bool) public isToken;
-    mapping(IERC20 => VirtualBalance) public virtualBalancesForAddition;
-    mapping(IERC20 => VirtualBalance) public virtualBalancesForRemoval;
-
-    modifier saveVirtualBalanceForRemoval(IERC20 token) {
-        uint256 tokenBalance = getBalanceOnRemoval(token);
-        _;
-        virtualBalancesForRemoval[token] = VirtualBalance({
-            balance: uint216(tokenBalance),
-            time: uint40(block.timestamp)
-        });
-    }
-
-    modifier saveVirtualBalanceForAddition(IERC20 token) {
-        uint256 tokenBalance = getBalanceOnAddition(token);
-        _;
-        virtualBalancesForAddition[token] = VirtualBalance({
-            balance: uint216(tokenBalance),
-            time: uint40(block.timestamp)
-        });
-    }
+    mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForAddition;
+    mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForRemoval;
 
     constructor(
         IERC20[] memory _tokens,
@@ -81,43 +82,49 @@ contract Mooniswap is ERC20, Ownable {
     }
 
     function getBalanceOnAddition(IERC20 token) public view returns(uint256) {
-        return _getBalance(virtualBalancesForAddition[token], token.balanceOf(address(this)));
+        return virtualBalancesForAddition[token].current(token.balanceOf(address(this)), DECAY_PERIOD);
     }
 
     function getBalanceOnRemoval(IERC20 token) public view returns(uint256) {
-        return _getBalance(virtualBalancesForRemoval[token], token.balanceOf(address(this)));
+        return virtualBalancesForRemoval[token].current(token.balanceOf(address(this)), DECAY_PERIOD);
     }
 
     function getReturn(IERC20 srcToken, IERC20 dstToken, uint256 amount) public view returns(uint256) {
         return _getReturn(srcToken, dstToken, amount, 0);
     }
 
-    function swap(IERC20 srcToken, IERC20 dstToken, uint256 amount, uint256 minReturn)
-        external
-        saveVirtualBalanceForRemoval(srcToken)
-        saveVirtualBalanceForAddition(dstToken)
+    function swap(
+        IERC20 srcToken,
+        IERC20 dstToken,
+        uint256 amount,
+        uint256 minReturn
+    )
+        public
         returns(uint256 result)
     {
-        uint256 srcAdditonBalance = getBalanceOnAddition(srcToken);
-        uint256 dstRemovalBalance = getBalanceOnRemoval(dstToken);
+        uint256 srcBalance = srcToken.balanceOf(address(this));
+        uint256 dstBalance = dstToken.balanceOf(address(this));
 
-        uint256 preBalance = srcToken.balanceOf(address(this));
+        // Save virtual balances to the opposit direction
+        uint256 srcRemovalBalance = virtualBalancesForRemoval[srcToken].current(srcBalance, DECAY_PERIOD);
+        uint256 dstAdditionBalance = virtualBalancesForAddition[dstToken].current(dstBalance, DECAY_PERIOD);
+        // Save virtual balances to the same direction
+        uint256 srcAdditonBalance = virtualBalancesForAddition[srcToken].current(srcBalance, DECAY_PERIOD);
+        uint256 dstRemovalBalance = virtualBalancesForRemoval[dstToken].current(dstBalance, DECAY_PERIOD);
+
         srcToken.safeTransferFrom(msg.sender, address(this), amount);
-        uint256 confirmed = srcToken.balanceOf(address(this)).sub(preBalance);
+        uint256 confirmed = srcToken.balanceOf(address(this)).sub(srcBalance);
 
         result = _getReturn(srcToken, dstToken, confirmed, confirmed);
         require(result >= minReturn, "Mooniswap: return is not enough");
         dstToken.safeTransfer(msg.sender, result);
 
+        // Update virtual balances to the opposit direction
+        virtualBalancesForRemoval[srcToken].update(srcRemovalBalance);
+        virtualBalancesForAddition[dstToken].update(dstAdditionBalance);
         // Update virtual balances to the same direction
-        virtualBalancesForAddition[srcToken] = VirtualBalance({
-            balance: uint216(srcAdditonBalance.add(confirmed)),
-            time: uint40(block.timestamp)
-        });
-        virtualBalancesForRemoval[dstToken] = VirtualBalance({
-            balance: uint216(dstRemovalBalance.sub(result)),
-            time: uint40(block.timestamp)
-        });
+        virtualBalancesForAddition[srcToken].update(srcAdditonBalance.add(confirmed));
+        virtualBalancesForRemoval[dstToken].update(dstRemovalBalance.sub(result));
 
         emit Swapped(
             msg.sender,
@@ -146,7 +153,21 @@ contract Mooniswap is ERC20, Ownable {
         for (uint i = 0; i < amounts.length; i++) {
             require(amounts[i] > 0, "Mooniswap: amount is zero");
 
-            (uint256 confirmed, uint256 preBalance) = _depositToken(tokens[i], amounts[i]);
+            IERC20 token = tokens[i];
+            uint256 preBalance = token.balanceOf(address(this));
+
+            // Save both virtual balances
+            uint256 removalBalance = virtualBalancesForRemoval[token].current(preBalance, DECAY_PERIOD);
+            uint256 additionBalance = virtualBalancesForAddition[token].current(preBalance, DECAY_PERIOD);
+
+            preBalance = token.balanceOf(address(this));
+            token.safeTransferFrom(msg.sender, address(this), amounts[i]);
+            uint256 confirmed = token.balanceOf(address(this)).sub(preBalance);
+
+            // Update both virtual balances
+            virtualBalancesForRemoval[token].update(removalBalance);
+            virtualBalancesForAddition[token].update(additionBalance);
+
             uint256 share = initialDepsoit ? totalSupply : totalSupply.mul(confirmed).div(preBalance);
             if (share < fairShare) {
                 fairShare = share;
@@ -166,20 +187,16 @@ contract Mooniswap is ERC20, Ownable {
         for (uint i = 0; i < tokens.length; i++) {
             IERC20 token = tokens[i];
 
-            uint256 tokenAdditonBalance = getBalanceOnAddition(token);
-            uint256 tokenRemovalBalance = getBalanceOnRemoval(token);
+            uint256 preBalance = token.balanceOf(address(this));
 
-            uint256 value = token.balanceOf(address(this)).mul(amount).div(totalSupply);
+            uint256 tokenAdditonBalance = virtualBalancesForAddition[token].current(preBalance, DECAY_PERIOD);
+            uint256 tokenRemovalBalance = virtualBalancesForRemoval[token].current(preBalance, DECAY_PERIOD);
+
+            uint256 value = preBalance.mul(amount).div(totalSupply);
             token.safeTransfer(msg.sender, value);
 
-            virtualBalancesForAddition[token] = VirtualBalance({
-                balance: uint216(tokenAdditonBalance.sub(value)),
-                time: uint40(block.timestamp)
-            });
-            virtualBalancesForRemoval[token] = VirtualBalance({
-                balance: uint216(tokenRemovalBalance.sub(value)),
-                time: uint40(block.timestamp)
-            });
+            virtualBalancesForAddition[token].update(tokenAdditonBalance.sub(value));
+            virtualBalancesForRemoval[token].update(tokenRemovalBalance.sub(value));
         }
 
         emit Withdrawn(msg.sender, amount);
@@ -187,38 +204,15 @@ contract Mooniswap is ERC20, Ownable {
 
     // Internal
 
-    function _getBalance(VirtualBalance memory virtualBalance, uint256 realBalance)
-        internal
-        view
-        returns(uint256)
-    {
-        uint256 timePassed = Math.min(DECAY_PERIOD, block.timestamp.sub(virtualBalance.time));
-        uint256 timeRemain = DECAY_PERIOD.sub(timePassed);
-        return uint256(virtualBalance.balance).mul(timeRemain).add(
-            realBalance.mul(timePassed)
-        ).div(DECAY_PERIOD);
-    }
-
-    function _depositToken(IERC20 token, uint256 amount)
-        internal
-        saveVirtualBalanceForRemoval(token)
-        saveVirtualBalanceForAddition(token)
-        returns(uint256 confirmed, uint256 preBalance)
-    {
-        preBalance = token.balanceOf(address(this));
-        token.safeTransferFrom(msg.sender, address(this), amount);
-        confirmed = token.balanceOf(address(this)).sub(preBalance);
-    }
-
     function _getReturn(IERC20 srcToken, IERC20 dstToken, uint256 amount, uint256 subSrcDeposited) internal view returns(uint256) {
         if (!isToken[srcToken] || !isToken[dstToken]) {
             return 0;
         }
 
         uint256 dstBalance = getBalanceOnRemoval(dstToken);
-        uint256 srcBalance = _getBalance(
-            virtualBalancesForAddition[srcToken],
-            srcToken.balanceOf(address(this)).sub(subSrcDeposited)
+        uint256 srcBalance = virtualBalancesForAddition[srcToken].current(
+            srcToken.balanceOf(address(this)).sub(subSrcDeposited),
+            DECAY_PERIOD
         );
         return amount.mul(dstBalance).div(srcBalance.add(amount));
     }
