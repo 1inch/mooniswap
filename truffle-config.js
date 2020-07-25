@@ -36,7 +36,7 @@ module.exports = {
             gasPrice: 10,
             onlyCalledMethods: true,
             showTimeSpent: true,
-            excludeContracts: ['Migrations']
+            excludeContracts: ['Migrations', 'mocks']
         }
     }
 };
