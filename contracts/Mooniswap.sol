@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "./Sqrt.sol";
 
 
 library VirtualBalance {
@@ -36,6 +37,7 @@ library VirtualBalance {
 
 
 contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
+    using Sqrt for uint256;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using VirtualBalance for VirtualBalance.Data;
@@ -55,8 +57,11 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         address indexed src,
         address indexed dst,
         uint256 amount,
-        uint256 result
+        uint256 result,
+        address referral
     );
+
+    uint256 public constant REFERRAL_SHARE = 20;
 
     IERC20[] public tokens;
     mapping(IERC20 => bool) public isToken;
@@ -164,7 +169,11 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         emit Withdrawn(msg.sender, amount);
     }
 
-    function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn) external nonReentrant returns(uint256 result) {
+    function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn) external returns(uint256 result) {
+        return swap(src, dst, amount, minReturn, address(0));
+    }
+
+    function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn, address referral) public nonReentrant returns(uint256 result) {
         uint256 srcBalance = src.balanceOf(address(this));
         uint256 dstBalance = dst.balanceOf(address(this));
 
@@ -193,7 +202,14 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             virtualBalancesForRemoval[dst].update(dstRemovalBalance.sub(result));
         }
 
-        emit Swapped(msg.sender, address(src), address(dst), confirmed, result);
+        emit Swapped(msg.sender, address(src), address(dst), confirmed, result, referral);
+
+        if (referral != address(0)) {
+            uint256 invariantRatio = uint256(1e36);
+            invariantRatio = invariantRatio.mul(srcBalance.add(amount)).div(srcBalance);
+            invariantRatio = invariantRatio.mul(dstBalance.sub(result)).div(dstBalance);
+            _mint(referral, invariantRatio.sqrt().sub(1e18).mul(totalSupply()).div(1e18).div(REFERRAL_SHARE));
+        }
     }
 
     function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
