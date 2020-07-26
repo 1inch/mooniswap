@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "./libraries/Sqrt.sol";
 
 
 library VirtualBalance {
@@ -36,6 +37,7 @@ library VirtualBalance {
 
 contract Mooniswap is ERC20, Ownable {
     using SafeMath for uint256;
+    using Sqrt for uint256;
     using SafeERC20 for IERC20;
     using VirtualBalance for VirtualBalance.Data;
 
@@ -123,6 +125,39 @@ contract Mooniswap is ERC20, Ownable {
         }
 
         emit Swapped(msg.sender, address(srcToken), address(dstToken), confirmed, result);
+    }
+
+    function partialDeposit(uint256[] memory amounts, uint256 minReturn) external returns(uint256) {
+        require(amounts.length == tokens.length, "Mooniswap: wrong amounts length");
+        uint256 totalSupply = totalSupply();
+        require(totalSupply > 0, "Mooniswap: pool is empty");
+
+        uint256 preInvariant = 1;
+        uint256 postInvariant = 1;
+
+        for (uint i = 0; i < amounts.length; i++) {
+            IERC20 token = tokens[i];
+            uint256 preBalance = token.balanceOf(address(this));
+
+            // Save both virtual balances
+            uint256 removalBalance = virtualBalancesForRemoval[token].current(preBalance);
+            uint256 additionBalance = virtualBalancesForAddition[token].current(preBalance);
+
+            token.safeTransferFrom(msg.sender, address(this), amounts[i]);
+
+            // Update both virtual balances
+            virtualBalancesForRemoval[token].update(removalBalance);
+            virtualBalancesForAddition[token].update(additionBalance);
+
+            preInvariant = preInvariant.mul(preBalance);
+            postInvariant = postInvariant.mul(token.balanceOf(address(this)));
+        }
+
+        uint256 share = uint256(1e36).mul(postInvariant).div(preInvariant).sqrt().sub(1e18).mul(totalSupply).div(1e18);
+        require(share >= minReturn, "Mooniswap: result is not enough");
+        _mint(msg.sender, share);
+        emit Deposited(msg.sender, share);
+        return share;
     }
 
     function deposit(uint256[] memory amounts, uint256 minReturn) external returns(uint256 fairShare) {

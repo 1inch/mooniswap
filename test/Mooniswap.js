@@ -550,5 +550,118 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 // expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
             });
         });
+
+        describe.only('Partial deposit', async function () {
+            beforeEach(async function () {
+                await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet1 });
+                expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
+                await timeIncreaseTo((await time.latest()).add(await this.mooniswap.decayPeriod()));
+            });
+
+            it('should not profit on imbalanced deposit to bigger side', async function () {
+                const started = (await time.latest()).addn(10);
+                await timeIncreaseTo(started);
+
+                expect(await trackReceivedToken(
+                    this.DAI,
+                    wallet2,
+                    () => this.mooniswap.swap(
+                        this.WETH.address,
+                        this.DAI.address,
+                        money.weth('1'),
+                        money.zero,
+                        { from: wallet2 },
+                    ),
+                )).to.be.bignumber.equal(money.dai('135'));
+
+                await checkBalances(this.mooniswap, this.WETH, money.weth('2'), money.weth('2'), money.weth('1'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('135'), money.dai('270'), money.dai('135'));
+
+                expect(await trackReceivedToken(
+                    this.mooniswap,
+                    wallet2,
+                    () => this.mooniswap.partialDeposit(
+                        [money.weth('2.5'), money.zero],
+                        money.ether('135'),
+                        { from: wallet2 },
+                    ),
+                )).to.be.bignumber.equal(money.dai('135'));
+
+                await checkBalances(this.mooniswap, this.WETH, money.weth('4.5'), money.weth('2'), money.weth('1'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('135'), money.dai('270'), money.dai('135'));
+
+                await timeIncreaseTo(started.add((await this.mooniswap.decayPeriod())));
+
+                await checkBalances(this.mooniswap, this.WETH, money.weth('4.5'), money.weth('4.5'), money.weth('4.5'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('135'), money.dai('135'), money.dai('135'));
+
+                expect(await trackReceivedToken(
+                    this.WETH,
+                    wallet2,
+                    () => this.mooniswap.swap(
+                        this.DAI.address,
+                        this.WETH.address,
+                        money.dai('270'),
+                        money.zero,
+                        { from: wallet2 },
+                    ),
+                )).to.be.bignumber.equal(money.dai('3'));
+
+                await checkBalances(this.mooniswap, this.WETH, money.weth('1.5'), money.weth('4.5'), money.weth('1.5'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('405'), money.dai('405'), money.dai('135'));
+
+                const totalSpent = money.weth('3.5').muln(270).add(money.dai('270'));
+                const totalGain = money.dai('135').add(money.dai('405').divn(3))
+                    .add(money.weth('1.5').divn(3).add(money.weth('3')).muln(270));
+                console.log(totalSpent.toString());
+                console.log(totalGain.toString());
+                expect(totalGain).to.be.bignumber.eq(totalSpent);
+            });
+
+            it('should not profit on imbalanced deposit to lower side', async function () {
+                const started = (await time.latest()).addn(10);
+                await timeIncreaseTo(started);
+
+                expect(await trackReceivedToken(
+                    this.DAI,
+                    wallet2,
+                    () => this.mooniswap.swap(
+                        this.WETH.address,
+                        this.DAI.address,
+                        money.weth('1'),
+                        money.zero,
+                        { from: wallet2 },
+                    ),
+                )).to.be.bignumber.equal(money.dai('135'));
+
+                await checkBalances(this.mooniswap, this.WETH, money.weth('2'), money.weth('2'), money.weth('1'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('135'), money.dai('270'), money.dai('135'));
+
+                expect(await trackReceivedToken(
+                    this.mooniswap,
+                    wallet2,
+                    () => this.mooniswap.partialDeposit(
+                        [money.zero, money.dai('405')],
+                        money.ether('270'),
+                        { from: wallet2 },
+                    ),
+                )).to.be.bignumber.equal(money.dai('270'));
+
+                await checkBalances(this.mooniswap, this.WETH, money.weth('2'), money.weth('2'), money.weth('1'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('540'), money.dai('270'), money.dai('135'));
+
+                await timeIncreaseTo(started.add((await this.mooniswap.decayPeriod())));
+
+                await checkBalances(this.mooniswap, this.WETH, money.weth('2'), money.weth('2'), money.weth('2'));
+                await checkBalances(this.mooniswap, this.DAI, money.dai('540'), money.dai('540'), money.dai('540'));
+
+                const totalSpent = money.weth('1').muln(270).add(money.dai('405'));
+                const totalGain = money.dai('135').add(money.dai('540').divn(2))
+                    .add(money.weth('2').divn(2).muln(270));
+                console.log(totalSpent.toString());
+                console.log(totalGain.toString());
+                expect(totalGain).to.be.bignumber.eq(totalSpent);
+            });
+        });
     });
 });
