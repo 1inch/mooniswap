@@ -42,7 +42,7 @@ contract MooniFactory is Ownable {
 
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = IERC20(token1);
-        tokens[0] = IERC20(token2);
+        tokens[1] = IERC20(token2);
         pool = new Mooniswap{salt: salt(token1, token2)}(tokens, name, symbol);
         pool.transferOwnership(owner());
         pools[token1][token2] = pool;
