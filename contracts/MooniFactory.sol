@@ -16,7 +16,7 @@ contract MooniFactory is Ownable {
     mapping(address => mapping(address => Mooniswap)) public pools;
 
     function deploy(address tokenA, address tokenB) external returns(Mooniswap pool) {
-        require(tokenA != tokenB, "MooniFactory: do not support equal tokens");
+        require(tokenA != tokenB, "Factory: not support same tokens");
 
         (address token1, address token2) = _sortTokens(tokenA, tokenB);
 
