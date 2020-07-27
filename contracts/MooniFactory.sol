@@ -13,7 +13,12 @@ contract MooniFactory is Ownable {
         address indexed token2
     );
 
+    Mooniswap[] public allPools;
     mapping(address => mapping(address => Mooniswap)) public pools;
+
+    function getAllPools() external view returns(Mooniswap[] memory) {
+        return allPools;
+    }
 
     function deploy(address tokenA, address tokenB) external returns(Mooniswap pool) {
         require(tokenA != tokenB, "Factory: not support same tokens");
