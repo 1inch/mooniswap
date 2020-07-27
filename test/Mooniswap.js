@@ -189,6 +189,23 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 await timeIncreaseTo((await time.latest()).add(await this.mooniswap.decayPeriod()));
             });
 
+            it('should not swap token to itself', async function () {
+                const result = await this.mooniswap.getReturn(this.WETH.address, this.WETH.address, money.weth('1'));
+                expect(result).to.be.bignumber.equal(money.zero);
+
+                await expectRevert(
+                    this.mooniswap.swap(this.WETH.address, this.WETH.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
+                    'Mooniswap: return is not enough'
+                );
+            });
+
+            it('should fail on too small minReturn argument', async function () {
+                await expectRevert(
+                    this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.dai('135').addn(1), constants.ZERO_ADDRESS, { from: wallet2 }),
+                    'Mooniswap: return is not enough'
+                );
+            });
+
             it('should give 50% of tokenB for 100% of tokenA swap as designed by x*y=k', async function () {
                 const wethAdditionBalance = await this.mooniswap.getBalanceForAddition(this.WETH.address);
                 const daiRemovalBalance = await this.mooniswap.getBalanceForRemoval(this.DAI.address);
