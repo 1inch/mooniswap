@@ -52,8 +52,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
 
     event Swapped(
         address indexed account,
-        address indexed srcToken,
-        address indexed dstToken,
+        address indexed src,
+        address indexed dst,
         uint256 amount,
         uint256 result
     );
@@ -87,40 +87,40 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         return virtualBalancesForRemoval[token].current(token.balanceOf(address(this)));
     }
 
-    function getReturn(IERC20 srcToken, IERC20 dstToken, uint256 amount) external view returns(uint256) {
-        return _getReturn(srcToken, dstToken, amount, getBalanceOnAddition(srcToken), getBalanceOnRemoval(dstToken));
+    function getReturn(IERC20 src, IERC20 dst, uint256 amount) external view returns(uint256) {
+        return _getReturn(src, dst, amount, getBalanceOnAddition(src), getBalanceOnRemoval(dst));
     }
 
-    function swap(IERC20 srcToken, IERC20 dstToken, uint256 amount, uint256 minReturn) external nonReentrant returns(uint256 result) {
-        uint256 srcBalance = srcToken.balanceOf(address(this));
-        uint256 dstBalance = dstToken.balanceOf(address(this));
+    function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn) external nonReentrant returns(uint256 result) {
+        uint256 srcBalance = src.balanceOf(address(this));
+        uint256 dstBalance = dst.balanceOf(address(this));
 
         // Save virtual balances to the opposit direction
-        uint256 srcRemovalBalance = virtualBalancesForRemoval[srcToken].current(srcBalance);
-        uint256 dstAdditionBalance = virtualBalancesForAddition[dstToken].current(dstBalance);
+        uint256 srcRemovalBalance = virtualBalancesForRemoval[src].current(srcBalance);
+        uint256 dstAdditionBalance = virtualBalancesForAddition[dst].current(dstBalance);
         // Save virtual balances to the same direction
-        uint256 srcAdditonBalance = virtualBalancesForAddition[srcToken].current(srcBalance);
-        uint256 dstRemovalBalance = virtualBalancesForRemoval[dstToken].current(dstBalance);
+        uint256 srcAdditonBalance = virtualBalancesForAddition[src].current(srcBalance);
+        uint256 dstRemovalBalance = virtualBalancesForRemoval[dst].current(dstBalance);
 
-        srcToken.safeTransferFrom(msg.sender, address(this), amount);
-        uint256 confirmed = srcToken.balanceOf(address(this)).sub(srcBalance);
+        src.safeTransferFrom(msg.sender, address(this), amount);
+        uint256 confirmed = src.balanceOf(address(this)).sub(srcBalance);
 
-        result = _getReturn(srcToken, dstToken, confirmed, srcAdditonBalance, dstRemovalBalance);
-        require(result >= minReturn, "Mooniswap: return is not enough");
-        dstToken.safeTransfer(msg.sender, result);
+        result = _getReturn(src, dst, confirmed, srcAdditonBalance, dstRemovalBalance);
+        require(result > 0 && result >= minReturn, "Mooniswap: return is not enough");
+        dst.safeTransfer(msg.sender, result);
 
         // Update virtual balances to the opposit direction
-        virtualBalancesForRemoval[srcToken].update(srcRemovalBalance);
-        virtualBalancesForAddition[dstToken].update(dstAdditionBalance);
+        virtualBalancesForRemoval[src].update(srcRemovalBalance);
+        virtualBalancesForAddition[dst].update(dstAdditionBalance);
         // Update virtual balances to the same direction
         if (srcAdditonBalance != srcBalance) {
-            virtualBalancesForAddition[srcToken].update(srcAdditonBalance.add(confirmed));
+            virtualBalancesForAddition[src].update(srcAdditonBalance.add(confirmed));
         }
         if (dstRemovalBalance != dstBalance) {
-            virtualBalancesForRemoval[dstToken].update(dstRemovalBalance.sub(result));
+            virtualBalancesForRemoval[dst].update(dstRemovalBalance.sub(result));
         }
 
-        emit Swapped(msg.sender, address(srcToken), address(dstToken), confirmed, result);
+        emit Swapped(msg.sender, address(src), address(dst), confirmed, result);
     }
 
     function deposit(uint256[] memory amounts, uint256 minReturn) external nonReentrant returns(uint256 fairShare) {
@@ -167,7 +167,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         emit Deposited(msg.sender, fairShare);
     }
 
-    function withdraw(uint256 amount) external nonReentrant {
+    function withdraw(uint256 amount, uint256[] memory minReturns) external nonReentrant {
         uint256 totalSupply = totalSupply();
         _burn(msg.sender, amount);
 
@@ -181,6 +181,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
 
             uint256 value = preBalance.mul(amount).div(totalSupply);
             token.safeTransfer(msg.sender, value);
+            require(i >= minReturns.length || value >= minReturns[i], "Mooniswap: result is not enough");
 
             virtualBalancesForAddition[token].update(
                 tokenAdditonBalance.sub(Math.min(tokenAdditonBalance, value))
@@ -193,13 +194,13 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         emit Withdrawn(msg.sender, amount);
     }
 
-    function _getReturn(IERC20 srcToken, IERC20 dstToken, uint256 amount, uint256 srcBalance, uint256 dstBalance) internal view returns(uint256) {
-        require(isToken[srcToken] && isToken[dstToken], "Mooniswap: token is not allowed");
-        return amount.mul(dstBalance).div(srcBalance.add(amount));
-    }
-
     function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
         require(!isToken[token], "Mooniswap: access denied");
         token.safeTransfer(msg.sender, amount);
+    }
+
+    function _getReturn(IERC20 src, IERC20 dst, uint256 amount, uint256 srcBalance, uint256 dstBalance) internal view returns(uint256) {
+        require(isToken[src] && isToken[dst], "Mooniswap: token is not allowed");
+        return amount.mul(dstBalance).div(srcBalance.add(amount));
     }
 }

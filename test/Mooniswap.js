@@ -513,19 +513,19 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
             });
 
             it('should be able to exit fully', async function () {
-                await this.mooniswap.withdraw(money.dai('270'), { from: wallet1 });
+                await this.mooniswap.withdraw(money.dai('270'), [], { from: wallet1 });
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.zero);
                 expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
                 expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
             });
 
             it('should be able to exit partially', async function () {
-                await this.mooniswap.withdraw(money.dai('135'), { from: wallet1 });
+                await this.mooniswap.withdraw(money.dai('135'), [], { from: wallet1 });
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('135'));
                 expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.dai('135'));
                 expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.weth('0.5'));
 
-                await this.mooniswap.withdraw(money.dai('135'), { from: wallet1 });
+                await this.mooniswap.withdraw(money.dai('135'), [], { from: wallet1 });
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.zero);
                 expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
                 expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
@@ -538,12 +538,12 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                     { from: wallet2 },
                 );
 
-                await this.mooniswap.withdraw(money.dai('270'), { from: wallet1 });
+                await this.mooniswap.withdraw(money.dai('270'), [], { from: wallet1 });
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.zero);
                 expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.dai('270'));
                 expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.weth('1'));
 
-                await this.mooniswap.withdraw(money.dai('270'), { from: wallet2 });
+                await this.mooniswap.withdraw(money.dai('270'), [], { from: wallet2 });
                 expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.zero);
                 expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
                 expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
