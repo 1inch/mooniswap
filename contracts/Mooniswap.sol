@@ -105,6 +105,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
 
     function deposit(uint256[] memory amounts, uint256 minReturn) external payable nonReentrant returns(uint256 fairShare) {
         require(amounts.length == tokens.length, "Mooniswap: wrong amounts length");
+        require((msg.value > 0) == (tokens[0].isETH() || tokens[1].isETH()), "Mooniswap: wrong value usage");
 
         uint256 totalSupply = totalSupply();
         bool initialDepsoit = (totalSupply == 0);
@@ -177,6 +178,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     }
 
     function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn, address referral) external payable nonReentrant returns(uint256 result) {
+        require((msg.value > 0) == src.isETH(), "Mooniswap: wrong value usage");
+
         Balances memory balances = Balances({
             src: src.balanceOf(address(this)),
             dst: dst.balanceOf(address(this))
@@ -223,7 +226,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     }
 
     function _getReturn(IERC20 src, IERC20 dst, uint256 amount, uint256 srcBalance, uint256 dstBalance) internal view returns(uint256) {
-        if (isToken[src] && isToken[dst]) {
+        if (isToken[src] && isToken[dst] && src != dst && amount > 0) {
             return amount.mul(dstBalance).div(srcBalance.add(amount));
         }
     }
