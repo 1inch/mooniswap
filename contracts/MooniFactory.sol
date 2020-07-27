@@ -18,19 +18,27 @@ contract MooniFactory is Ownable {
     function deploy(address tokenA, address tokenB) external returns(Mooniswap mooniswap) {
         (address token1, address token2) = _sortTokens(tokenA, tokenB);
         string memory name = string(abi.encodePacked(
-            "Mooniswap (",
+            "Mooniswap V1 (",
             ERC20(token1).symbol(),
             "-",
             ERC20(token2).symbol(),
             ")"
         ));
 
+        string memory symbol = string(abi.encodePacked(
+            "MOON-V1-",
+            ERC20(token1).symbol(),
+            "-",
+            ERC20(token2).symbol()
+        ));
+
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = IERC20(token1);
         tokens[0] = IERC20(token2);
-        mooniswap = new Mooniswap{salt: salt(token1, token2)}(tokens, name, "MOON-V1");
+        mooniswap = new Mooniswap{salt: salt(token1, token2)}(tokens, name, symbol);
         mooniswap.transferOwnership(owner());
         mooniswaps[token1][token2] = mooniswap;
+        mooniswaps[token2][token1] = mooniswap;
 
         emit Deployed(
             address(mooniswap),
