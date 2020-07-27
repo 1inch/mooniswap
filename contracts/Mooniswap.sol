@@ -75,10 +75,14 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForAddition;
     mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForRemoval;
 
-    constructor(IERC20[] memory assets, string memory name, string memory symbol) public ERC20(name, symbol) {
-        require(assets.length == 2, "Mooniswap: only 2 tokens allowed");
+    constructor(string memory name, string memory symbol) public ERC20(name, symbol) {
         require(bytes(name).length > 0, "Mooniswap: name is empty");
         require(bytes(symbol).length > 0, "Mooniswap: symbol is empty");
+    }
+
+    function setup(IERC20[] memory assets) external {
+        require(tokens.length == 0, "Mooniswap: already initialized");
+        require(assets.length == 2, "Mooniswap: only 2 tokens allowed");
 
         tokens = assets;
         for (uint i = 0; i < assets.length; i++) {
