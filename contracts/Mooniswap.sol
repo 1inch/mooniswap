@@ -132,9 +132,7 @@ contract Mooniswap is ERC20, Ownable {
         uint256 totalSupply = totalSupply();
         require(totalSupply > 0, "Mooniswap: pool is empty");
 
-        uint256 preInvariant = 1;
-        uint256 postInvariant = 1;
-
+        uint256 invariantRatio = 1e36;
         for (uint i = 0; i < amounts.length; i++) {
             IERC20 token = tokens[i];
             uint256 preBalance = token.balanceOf(address(this));
@@ -149,11 +147,10 @@ contract Mooniswap is ERC20, Ownable {
             virtualBalancesForRemoval[token].update(removalBalance);
             virtualBalancesForAddition[token].update(additionBalance);
 
-            preInvariant = preInvariant.mul(preBalance);
-            postInvariant = postInvariant.mul(token.balanceOf(address(this)));
+            invariantRatio = invariantRatio.mul(token.balanceOf(address(this))).div(preBalance);
         }
 
-        uint256 share = uint256(1e18).mul(postInvariant).div(preInvariant).sqrt().sub(1e9).mul(totalSupply).div(1e9);
+        uint256 share = invariantRatio.sqrt().sub(1e18).mul(totalSupply).div(1e18);
         require(share >= minReturn, "Mooniswap: result is not enough");
         _mint(msg.sender, share);
         emit Deposited(msg.sender, share);
