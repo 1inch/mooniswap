@@ -3,6 +3,7 @@ const { expect } = require('chai');
 
 const money = {
     ether,
+    eth: ether,
     zero: ether('0'),
     weth: ether,
     dai: ether,
@@ -10,10 +11,29 @@ const money = {
 };
 
 async function trackReceivedToken (token, wallet, txPromise) {
-    const preBalance = web3.utils.toBN(await token.balanceOf(wallet));
-    await txPromise();
-    const postBalance = web3.utils.toBN(await token.balanceOf(wallet));
-    return postBalance.sub(preBalance);
+    const preBalance = web3.utils.toBN(
+        (token == constants.ZERO_ADDRESS)
+        ? await web3.eth.getBalance(wallet)
+        : await token.balanceOf(wallet)
+    );
+
+    const receipt = await txPromise();
+    let txFees = web3.utils.toBN('0');
+    if (wallet.toLowerCase() === receipt.from.toLowerCase() && token === constants.ZERO_ADDRESS) {
+        const tx = await web3.eth.getTransaction(receipt.transactionHash);
+        txFees = web3.utils.toBN(receipt.gasUsed).mul(web3.utils.toBN(tx.gasPrice));
+    }
+
+    const postBalance = web3.utils.toBN(
+        (token == constants.ZERO_ADDRESS)
+        ? await web3.eth.getBalance(wallet)
+        : await token.balanceOf(wallet)
+    );
+
+    console.log('preBalance', preBalance.toString());
+    console.log('postBalance', postBalance.toString());
+    console.log('txFees', txFees.toString());
+    return postBalance.sub(preBalance).add(txFees);
 }
 
 async function timeIncreaseTo (seconds) {
@@ -204,6 +224,50 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                     this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.dai('135').addn(1), constants.ZERO_ADDRESS, { from: wallet2 }),
                     'Mooniswap: return is not enough'
                 );
+            });
+
+            it('should support ETH to DAI', async function () {
+                this.mooniswap = await Mooniswap.new([constants.ZERO_ADDRESS, this.DAI.address], 'Mooniswap', 'MOON');
+                await this.DAI.approve(this.mooniswap.address, money.dai('2700'), { from: wallet2 });
+                await this.mooniswap.deposit([money.eth('1'), money.dai('270')], money.dai('270'), { value: money.eth('1'), from: wallet2 });
+                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('270'));
+                await timeIncreaseTo((await time.latest()).add(await this.mooniswap.decayPeriod()));
+
+                const wethAdditionBalance = await this.mooniswap.getBalanceForAddition(constants.ZERO_ADDRESS);
+                const daiRemovalBalance = await this.mooniswap.getBalanceForRemoval(this.DAI.address);
+                const result = await this.mooniswap.getReturn(constants.ZERO_ADDRESS, this.DAI.address, money.eth('1'));
+                expect(wethAdditionBalance).to.be.bignumber.equal(money.eth('1'));
+                expect(daiRemovalBalance).to.be.bignumber.equal(money.dai('270'));
+                expect(result).to.be.bignumber.equal(money.dai('135'));
+
+                const received = await trackReceivedToken(
+                    this.DAI,
+                    wallet2,
+                    () => this.mooniswap.swap(constants.ZERO_ADDRESS, this.DAI.address, money.eth('1'), money.zero, constants.ZERO_ADDRESS, { value: money.eth('1'), from: wallet2 }),
+                );
+                expect(received).to.be.bignumber.equal(money.dai('135'));
+            });
+
+            it.only('should support DAI to ETH', async function () {
+                this.mooniswap = await Mooniswap.new([constants.ZERO_ADDRESS, this.DAI.address], 'Mooniswap', 'MOON');
+                await this.DAI.approve(this.mooniswap.address, money.dai('2700'), { from: wallet2 });
+                await this.mooniswap.deposit([money.eth('1'), money.dai('270')], money.dai('270'), { value: money.eth('1'), from: wallet2 });
+                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('270'));
+                await timeIncreaseTo((await time.latest()).add(await this.mooniswap.decayPeriod()));
+
+                const daiAdditionBalance = await this.mooniswap.getBalanceForAddition(this.DAI.address);
+                const ethRemovalBalance = await this.mooniswap.getBalanceForRemoval(constants.ZERO_ADDRESS);
+                const result = await this.mooniswap.getReturn(this.DAI.address, constants.ZERO_ADDRESS, money.dai('270'));
+                expect(daiAdditionBalance).to.be.bignumber.equal(money.dai('270'));
+                expect(ethRemovalBalance).to.be.bignumber.equal(money.eth('1'));
+                expect(result).to.be.bignumber.equal(money.eth('0.5'));
+
+                const received = await trackReceivedToken(
+                    constants.ZERO_ADDRESS,
+                    wallet2,
+                    () => this.mooniswap.swap(this.DAI.address, constants.ZERO_ADDRESS, money.dai('270'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
+                );
+                expect(received).to.be.bignumber.equal(money.eth('0.5'));
             });
 
             it('should give 50% of tokenB for 100% of tokenA swap as designed by x*y=k', async function () {
