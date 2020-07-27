@@ -1,6 +1,5 @@
-const { time, ether, expectRevert } = require('@openzeppelin/test-helpers');
+const { constants, time, ether, expectRevert } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
-const { ZERO_ADDRESS } = require('@openzeppelin/test-helpers/src/constants');
 
 const money = {
     ether,
@@ -201,7 +200,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const received = await trackReceivedToken(
                     this.DAI,
                     wallet2,
-                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, ZERO_ADDRESS, { from: wallet2 }),
+                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
                 );
                 expect(received).to.be.bignumber.equal(money.dai('135'));
             });
@@ -219,7 +218,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const received1 = await trackReceivedToken(
                     this.DAI,
                     wallet2,
-                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('0.5'), money.zero, ZERO_ADDRESS, { from: wallet2 }),
+                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('0.5'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
                 );
                 expect(received1).to.be.bignumber.equal(money.dai('90'));
 
@@ -235,7 +234,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const received2 = await trackReceivedToken(
                     this.DAI,
                     wallet2,
-                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('0.5'), money.zero, ZERO_ADDRESS, { from: wallet2 }),
+                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('0.5'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
                 );
                 expect(received2).to.be.bignumber.equal(money.dai('45'));
 
@@ -259,7 +258,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const received1 = await trackReceivedToken(
                     this.DAI,
                     wallet2,
-                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, ZERO_ADDRESS, { from: wallet2 }),
+                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
                 );
                 expect(received1).to.be.bignumber.equal(money.dai('135'));
 
@@ -295,7 +294,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const received2 = await trackReceivedToken(
                     this.WETH,
                     wallet2,
-                    () => this.mooniswap.swap(this.DAI.address, this.WETH.address, money.dai('135'), money.zero, ZERO_ADDRESS, { from: wallet2 }),
+                    () => this.mooniswap.swap(this.DAI.address, this.WETH.address, money.dai('135'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
                 );
                 expect(received2).to.be.bignumber.equal(money.weth('1'));
             });
@@ -312,7 +311,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.DAI.address,
                         money.weth('1'),
                         money.zero,
-                        ZERO_ADDRESS,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 )).to.be.bignumber.equal(money.dai('135'));
@@ -328,7 +327,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('270'),
                         money.zero,
-                        ZERO_ADDRESS,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 )).to.be.bignumber.equal(money.weth('0.5'));
@@ -349,7 +348,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.DAI.address,
                         money.weth('1.75'),
                         money.zero,
-                        ZERO_ADDRESS,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 )).to.be.bignumber.equal(money.dai('135'));
@@ -365,7 +364,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('472.5'),
                         money.zero,
-                        ZERO_ADDRESS,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 )).to.be.bignumber.equal(money.weth('0.5'));
@@ -386,7 +385,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const started = (await time.latest()).addn(10);
                 await timeIncreaseTo(started);
 
-                await this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, ZERO_ADDRESS, { from: wallet2 });
+                await this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 });
 
                 await timeIncreaseTo(started.add((await this.mooniswap.decayPeriod()).divn(2)));
 
@@ -407,7 +406,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const started = (await time.latest()).addn(10);
                 await timeIncreaseTo(started);
 
-                await this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, ZERO_ADDRESS, { from: wallet2 });
+                await this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 });
 
                 await checkBalances(this.mooniswap, this.WETH, money.weth('2'), money.weth('2'), money.weth('1'));
                 await checkBalances(this.mooniswap, this.DAI, money.dai('135'), money.dai('270'), money.dai('135'));
@@ -440,7 +439,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('101.25'),
                         money.zero,
-                        ZERO_ADDRESS,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 );
@@ -482,7 +481,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('168'),
                         money.zero,
-                        ZERO_ADDRESS,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 );
@@ -501,7 +500,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('56'),
                         money.zero,
-                        ZERO_ADDRESS,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 );
