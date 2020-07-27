@@ -543,11 +543,10 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.dai('270'));
                 expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.weth('1'));
 
-                // TODO: solve problem impossible withdrawal
-                // await this.mooniswap.withdraw(money.dai('270'), { from: wallet2 });
-                // expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.zero);
-                // expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
-                // expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
+                await this.mooniswap.withdraw(money.dai('270'), { from: wallet2 });
+                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.zero);
+                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
+                expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
             });
         });
     });

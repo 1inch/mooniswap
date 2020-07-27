@@ -114,7 +114,6 @@ contract Mooniswap is ERC20, Ownable {
         virtualBalancesForRemoval[srcToken].update(srcRemovalBalance);
         virtualBalancesForAddition[dstToken].update(dstAdditionBalance);
         // Update virtual balances to the same direction
-
         if (srcAdditonBalance != srcBalance) {
             virtualBalancesForAddition[srcToken].update(srcAdditonBalance.add(confirmed));
         }
@@ -184,8 +183,12 @@ contract Mooniswap is ERC20, Ownable {
             uint256 value = preBalance.mul(amount).div(totalSupply);
             token.safeTransfer(msg.sender, value);
 
-            virtualBalancesForAddition[token].update(tokenAdditonBalance.sub(value));
-            virtualBalancesForRemoval[token].update(tokenRemovalBalance.sub(value));
+            virtualBalancesForAddition[token].update(
+                tokenAdditonBalance.sub(Math.min(tokenAdditonBalance, value))
+            );
+            virtualBalancesForRemoval[token].update(
+                tokenRemovalBalance.sub(Math.min(tokenRemovalBalance, value))
+            );
         }
 
         emit Withdrawn(msg.sender, amount);
