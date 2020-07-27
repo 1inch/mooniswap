@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "./libraries/UniERC20.sol";
 import "./libraries/Sqrt.sol";
 
 
@@ -39,7 +39,7 @@ library VirtualBalance {
 contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     using Sqrt for uint256;
     using SafeMath for uint256;
-    using SafeERC20 for IERC20;
+    using UniERC20 for IERC20;
     using VirtualBalance for VirtualBalance.Data;
 
     struct Balances {
@@ -103,7 +103,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         return _getReturn(src, dst, amount, getBalanceForAddition(src), getBalanceForRemoval(dst));
     }
 
-    function deposit(uint256[] memory amounts, uint256 minReturn) external nonReentrant returns(uint256 fairShare) {
+    function deposit(uint256[] memory amounts, uint256 minReturn) external payable nonReentrant returns(uint256 fairShare) {
         require(amounts.length == tokens.length, "Mooniswap: wrong amounts length");
 
         uint256 totalSupply = totalSupply();
@@ -128,7 +128,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             uint256 removalBalance = virtualBalancesForRemoval[token].current(preBalance);
             uint256 additionBalance = virtualBalancesForAddition[token].current(preBalance);
 
-            token.safeTransferFrom(msg.sender, address(this), amounts[i]);
+            token.uniTransferFromSenderToThis(amounts[i]);
             uint256 confirmed = token.balanceOf(address(this)).sub(preBalance);
 
             // Update both virtual balances
@@ -161,7 +161,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             uint256 tokenRemovalBalance = virtualBalancesForRemoval[token].current(preBalance);
 
             uint256 value = preBalance.mul(amount).div(totalSupply);
-            token.safeTransfer(msg.sender, value);
+            token.uniTransfer(msg.sender, value);
             require(i >= minReturns.length || value >= minReturns[i], "Mooniswap: result is not enough");
 
             // Update both virtual balances
@@ -176,7 +176,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         emit Withdrawn(msg.sender, amount);
     }
 
-    function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn, address referral) external nonReentrant returns(uint256 result) {
+    function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn, address referral) external payable nonReentrant returns(uint256 result) {
         Balances memory balances = Balances({
             src: src.balanceOf(address(this)),
             dst: dst.balanceOf(address(this))
@@ -189,12 +189,12 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         uint256 srcAdditonBalance = virtualBalancesForAddition[src].current(balances.src);
         uint256 dstRemovalBalance = virtualBalancesForRemoval[dst].current(balances.dst);
 
-        src.safeTransferFrom(msg.sender, address(this), amount);
+        src.uniTransferFromSenderToThis(amount);
         uint256 confirmed = src.balanceOf(address(this)).sub(balances.src);
 
         result = _getReturn(src, dst, confirmed, srcAdditonBalance, dstRemovalBalance);
         require(result > 0 && result >= minReturn, "Mooniswap: return is not enough");
-        dst.safeTransfer(msg.sender, result);
+        dst.uniTransfer(msg.sender, result);
 
         // Update virtual balances to the opposit direction
         virtualBalancesForRemoval[src].update(srcRemovalBalance);
@@ -219,7 +219,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
 
     function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
         require(!isToken[token], "Mooniswap: access denied");
-        token.safeTransfer(msg.sender, amount);
+        token.uniTransfer(msg.sender, amount);
     }
 
     function _getReturn(IERC20 src, IERC20 dst, uint256 amount, uint256 srcBalance, uint256 dstBalance) internal view returns(uint256) {
