@@ -42,6 +42,11 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
     using VirtualBalance for VirtualBalance.Data;
 
+    struct Balances {
+        uint256 src;
+        uint256 dst;
+    }
+
     event Deposited(
         address indexed account,
         uint256 amount
@@ -59,7 +64,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         uint256 amount,
         uint256 srcPreBalance,
         uint256 dstPreBalance,
-        uint256 result
+        uint256 result,
+        address referral
     );
 
     uint256 public constant REFERRAL_SHARE = 20; // 1/share = 5% of LPs revenue
@@ -171,40 +177,42 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     }
 
     function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn, address referral) external nonReentrant returns(uint256 result) {
-        uint256 srcBalance = src.balanceOf(address(this));
-        uint256 dstBalance = dst.balanceOf(address(this));
+        Balances memory balances = Balances({
+            src: src.balanceOf(address(this)),
+            dst: dst.balanceOf(address(this))
+        });
 
         // Remember virtual balances to the opposit direction
-        uint256 srcRemovalBalance = virtualBalancesForRemoval[src].current(srcBalance);
-        uint256 dstAdditionBalance = virtualBalancesForAddition[dst].current(dstBalance);
+        uint256 srcRemovalBalance = virtualBalancesForRemoval[src].current(balances.src);
+        uint256 dstAdditionBalance = virtualBalancesForAddition[dst].current(balances.dst);
         // Remember virtual balances to the same direction
-        uint256 srcAdditonBalance = virtualBalancesForAddition[src].current(srcBalance);
-        uint256 dstRemovalBalance = virtualBalancesForRemoval[dst].current(dstBalance);
+        uint256 srcAdditonBalance = virtualBalancesForAddition[src].current(balances.src);
+        uint256 dstRemovalBalance = virtualBalancesForRemoval[dst].current(balances.dst);
 
         src.safeTransferFrom(msg.sender, address(this), amount);
-        uint256 confirmed = src.balanceOf(address(this)).sub(srcBalance);
+        uint256 confirmed = src.balanceOf(address(this)).sub(balances.src);
 
         result = _getReturn(src, dst, confirmed, srcAdditonBalance, dstRemovalBalance);
         require(result > 0 && result >= minReturn, "Mooniswap: return is not enough");
         dst.safeTransfer(msg.sender, result);
 
         // Update virtual balances to the opposit direction
-        virtualBalancesForRemoval[_src()].update(srcRemovalBalance);
-        virtualBalancesForAddition[_dst()].update(dstAdditionBalance);
+        virtualBalancesForRemoval[src].update(srcRemovalBalance);
+        virtualBalancesForAddition[dst].update(dstAdditionBalance);
         // Update virtual balances to the same direction only at imbalanced state
-        if (srcAdditonBalance != srcBalance) {
-            virtualBalancesForAddition[_src()].update(srcAdditonBalance.add(confirmed));
+        if (srcAdditonBalance != balances.src) {
+            virtualBalancesForAddition[src].update(srcAdditonBalance.add(confirmed));
         }
-        if (dstRemovalBalance != dstBalance) {
-            virtualBalancesForRemoval[_dst()].update(dstRemovalBalance.sub(result));
+        if (dstRemovalBalance != balances.dst) {
+            virtualBalancesForRemoval[dst].update(dstRemovalBalance.sub(result));
         }
 
-        emit Swapped(msg.sender, address(_src()), address(_dst()), confirmed, srcBalance, dstBalance, result);
+        emit Swapped(msg.sender, address(src), address(dst), confirmed, balances.src, balances.dst, result, referral);
 
         if (referral != address(0)) {
             uint256 invariantRatio = uint256(1e36);
-            invariantRatio = invariantRatio.mul(srcBalance.add(amount)).div(srcBalance);
-            invariantRatio = invariantRatio.mul(dstBalance.sub(result)).div(dstBalance);
+            invariantRatio = invariantRatio.mul(balances.src.add(amount)).div(balances.src);
+            invariantRatio = invariantRatio.mul(balances.dst.sub(result)).div(balances.dst);
             _mint(referral, invariantRatio.sqrt().sub(1e18).mul(totalSupply()).div(1e18).div(REFERRAL_SHARE));
         }
     }
@@ -217,17 +225,6 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     function _getReturn(IERC20 src, IERC20 dst, uint256 amount, uint256 srcBalance, uint256 dstBalance) internal view returns(uint256) {
         if (isToken[src] && isToken[dst]) {
             return amount.mul(dstBalance).div(srcBalance.add(amount));
-        }
-    }
-
-    function _src() internal pure returns(IERC20 src) {
-        assembly {
-            src := calldataload(4)
-        }
-    }
-    function _dst() internal pure returns(IERC20 dst) {
-        assembly {
-            dst := calldataload(36)
         }
     }
 }
