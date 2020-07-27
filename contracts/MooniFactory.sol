@@ -13,10 +13,13 @@ contract MooniFactory is Ownable {
         address indexed token2
     );
 
-    mapping(address => mapping(address => Mooniswap)) public mooniswaps;
+    mapping(address => mapping(address => Mooniswap)) public pools;
 
-    function deploy(address tokenA, address tokenB) external returns(Mooniswap mooniswap) {
+    function deploy(address tokenA, address tokenB) external returns(Mooniswap pool) {
+        require(tokenA != tokenB, "MooniFactory: do not support equal tokens");
+
         (address token1, address token2) = _sortTokens(tokenA, tokenB);
+
         string memory name = string(abi.encodePacked(
             "Mooniswap V1 (",
             ERC20(token1).symbol(),
@@ -35,13 +38,13 @@ contract MooniFactory is Ownable {
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = IERC20(token1);
         tokens[0] = IERC20(token2);
-        mooniswap = new Mooniswap{salt: salt(token1, token2)}(tokens, name, symbol);
-        mooniswap.transferOwnership(owner());
-        mooniswaps[token1][token2] = mooniswap;
-        mooniswaps[token2][token1] = mooniswap;
+        pool = new Mooniswap{salt: salt(token1, token2)}(tokens, name, symbol);
+        pool.transferOwnership(owner());
+        pools[token1][token2] = pool;
+        pools[token2][token1] = pool;
 
         emit Deployed(
-            address(mooniswap),
+            address(pool),
             token1,
             token2
         );
