@@ -57,11 +57,12 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         address indexed src,
         address indexed dst,
         uint256 amount,
-        uint256 result,
-        address referral
+        uint256 srcPreBalance,
+        uint256 dstPreBalance,
+        uint256 result
     );
 
-    uint256 public constant REFERRAL_SHARE = 20;
+    uint256 public constant REFERRAL_SHARE = 20; // 1/share = 5% of LPs revenue
 
     IERC20[] public tokens;
     mapping(IERC20 => bool) public isToken;
@@ -169,11 +170,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         emit Withdrawn(msg.sender, amount);
     }
 
-    function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn) external returns(uint256 result) {
-        return swap(src, dst, amount, minReturn, address(0));
-    }
-
-    function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn, address referral) public nonReentrant returns(uint256 result) {
+    function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn, address referral) external nonReentrant returns(uint256 result) {
         uint256 srcBalance = src.balanceOf(address(this));
         uint256 dstBalance = dst.balanceOf(address(this));
 
@@ -192,17 +189,17 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         dst.safeTransfer(msg.sender, result);
 
         // Update virtual balances to the opposit direction
-        virtualBalancesForRemoval[src].update(srcRemovalBalance);
-        virtualBalancesForAddition[dst].update(dstAdditionBalance);
+        virtualBalancesForRemoval[_src()].update(srcRemovalBalance);
+        virtualBalancesForAddition[_dst()].update(dstAdditionBalance);
         // Update virtual balances to the same direction only at imbalanced state
         if (srcAdditonBalance != srcBalance) {
-            virtualBalancesForAddition[src].update(srcAdditonBalance.add(confirmed));
+            virtualBalancesForAddition[_src()].update(srcAdditonBalance.add(confirmed));
         }
         if (dstRemovalBalance != dstBalance) {
-            virtualBalancesForRemoval[dst].update(dstRemovalBalance.sub(result));
+            virtualBalancesForRemoval[_dst()].update(dstRemovalBalance.sub(result));
         }
 
-        emit Swapped(msg.sender, address(src), address(dst), confirmed, result, referral);
+        emit Swapped(msg.sender, address(_src()), address(_dst()), confirmed, srcBalance, dstBalance, result);
 
         if (referral != address(0)) {
             uint256 invariantRatio = uint256(1e36);
@@ -220,6 +217,17 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     function _getReturn(IERC20 src, IERC20 dst, uint256 amount, uint256 srcBalance, uint256 dstBalance) internal view returns(uint256) {
         if (isToken[src] && isToken[dst]) {
             return amount.mul(dstBalance).div(srcBalance.add(amount));
+        }
+    }
+
+    function _src() internal pure returns(IERC20 src) {
+        assembly {
+            src := calldataload(4)
+        }
+    }
+    function _dst() internal pure returns(IERC20 dst) {
+        assembly {
+            dst := calldataload(36)
         }
     }
 }
