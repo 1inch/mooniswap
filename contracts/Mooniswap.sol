@@ -153,7 +153,7 @@ contract Mooniswap is ERC20, Ownable {
             postInvariant = postInvariant.mul(token.balanceOf(address(this)));
         }
 
-        uint256 share = uint256(1e36).mul(postInvariant).div(preInvariant).sqrt().sub(1e18).mul(totalSupply).div(1e18);
+        uint256 share = uint256(1e18).mul(postInvariant).div(preInvariant).sqrt().sub(1e9).mul(totalSupply).div(1e9);
         require(share >= minReturn, "Mooniswap: result is not enough");
         _mint(msg.sender, share);
         emit Deposited(msg.sender, share);
