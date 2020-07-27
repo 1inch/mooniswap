@@ -92,11 +92,11 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     }
 
     function getBalanceForAddition(IERC20 token) public view returns(uint256) {
-        return virtualBalancesForAddition[token].current(token.balanceOf(address(this)));
+        return virtualBalancesForAddition[token].current(token.uniBalanceOf(address(this)));
     }
 
     function getBalanceForRemoval(IERC20 token) public view returns(uint256) {
-        return virtualBalancesForRemoval[token].current(token.balanceOf(address(this)));
+        return virtualBalancesForRemoval[token].current(token.uniBalanceOf(address(this)));
     }
 
     function getReturn(IERC20 src, IERC20 dst, uint256 amount) external view returns(uint256) {
@@ -123,14 +123,14 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             require(amounts[i] > 0, "Mooniswap: amount is zero");
 
             IERC20 token = tokens[i];
-            uint256 preBalance = token.balanceOf(address(this));
+            uint256 preBalance = token.uniBalanceOf(address(this));
 
             // Remember both virtual balances
             uint256 removalBalance = virtualBalancesForRemoval[token].current(preBalance);
             uint256 additionBalance = virtualBalancesForAddition[token].current(preBalance);
 
             token.uniTransferFromSenderToThis(amounts[i]);
-            uint256 confirmed = token.balanceOf(address(this)).sub(preBalance);
+            uint256 confirmed = token.uniBalanceOf(address(this)).sub(preBalance);
 
             // Update both virtual balances
             virtualBalancesForRemoval[token].update(removalBalance);
@@ -155,7 +155,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         for (uint i = 0; i < tokens.length; i++) {
             IERC20 token = tokens[i];
 
-            uint256 preBalance = token.balanceOf(address(this));
+            uint256 preBalance = token.uniBalanceOf(address(this));
 
             // Remember both virtual balances
             uint256 tokenAdditonBalance = virtualBalancesForAddition[token].current(preBalance);
@@ -181,8 +181,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         require((msg.value > 0) == src.isETH(), "Mooniswap: wrong value usage");
 
         Balances memory balances = Balances({
-            src: src.balanceOf(address(this)),
-            dst: dst.balanceOf(address(this))
+            src: src.uniBalanceOf(address(this)),
+            dst: dst.uniBalanceOf(address(this))
         });
 
         // Remember virtual balances to the opposit direction
@@ -193,7 +193,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         uint256 dstRemovalBalance = virtualBalancesForRemoval[dst].current(balances.dst);
 
         src.uniTransferFromSenderToThis(amount);
-        uint256 confirmed = src.balanceOf(address(this)).sub(balances.src);
+        uint256 confirmed = src.uniBalanceOf(address(this)).sub(balances.src);
 
         result = _getReturn(src, dst, confirmed, srcAdditonBalance, dstRemovalBalance);
         require(result > 0 && result >= minReturn, "Mooniswap: return is not enough");
