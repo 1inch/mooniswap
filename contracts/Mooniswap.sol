@@ -3,6 +3,7 @@
 pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -34,7 +35,7 @@ library VirtualBalance {
 }
 
 
-contract Mooniswap is ERC20, Ownable {
+contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using VirtualBalance for VirtualBalance.Data;
@@ -78,21 +79,19 @@ contract Mooniswap is ERC20, Ownable {
         return VirtualBalance.DECAY_PERIOD;
     }
 
-    function getBalanceOnAddition(IERC20 token) external view returns(uint256) {
+    function getBalanceOnAddition(IERC20 token) public view returns(uint256) {
         return virtualBalancesForAddition[token].current(token.balanceOf(address(this)));
     }
 
-    function getBalanceOnRemoval(IERC20 token) external view returns(uint256) {
+    function getBalanceOnRemoval(IERC20 token) public view returns(uint256) {
         return virtualBalancesForRemoval[token].current(token.balanceOf(address(this)));
     }
 
     function getReturn(IERC20 srcToken, IERC20 dstToken, uint256 amount) external view returns(uint256) {
-        uint256 srcBalance = virtualBalancesForAddition[srcToken].current(srcToken.balanceOf(address(this)));
-        uint256 dstBalance = virtualBalancesForRemoval[dstToken].current(dstToken.balanceOf(address(this)));
-        return _getReturn(srcToken, dstToken, amount, srcBalance, dstBalance);
+        return _getReturn(srcToken, dstToken, amount, getBalanceOnAddition(srcToken), getBalanceOnRemoval(dstToken));
     }
 
-    function swap(IERC20 srcToken, IERC20 dstToken, uint256 amount, uint256 minReturn) external returns(uint256 result) {
+    function swap(IERC20 srcToken, IERC20 dstToken, uint256 amount, uint256 minReturn) external nonReentrant returns(uint256 result) {
         uint256 srcBalance = srcToken.balanceOf(address(this));
         uint256 dstBalance = dstToken.balanceOf(address(this));
 
@@ -124,7 +123,7 @@ contract Mooniswap is ERC20, Ownable {
         emit Swapped(msg.sender, address(srcToken), address(dstToken), confirmed, result);
     }
 
-    function deposit(uint256[] memory amounts, uint256 minReturn) external returns(uint256 fairShare) {
+    function deposit(uint256[] memory amounts, uint256 minReturn) external nonReentrant returns(uint256 fairShare) {
         require(amounts.length == tokens.length, "Mooniswap: wrong amounts length");
 
         uint256 totalSupply = totalSupply();
@@ -168,7 +167,7 @@ contract Mooniswap is ERC20, Ownable {
         emit Deposited(msg.sender, fairShare);
     }
 
-    function withdraw(uint256 amount) external {
+    function withdraw(uint256 amount) external nonReentrant {
         uint256 totalSupply = totalSupply();
         _burn(msg.sender, amount);
 
