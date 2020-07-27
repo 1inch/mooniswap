@@ -38,7 +38,7 @@
         "lint:sol:fix": "solhint --max-warnings 0 \"contracts/**/*.sol\" --fix",
         "lint": "yarn run lint:js && yarn run lint:sol",
         "lint:fix": "yarn run lint:js:fix && yarn run lint:sol:fix",
-        "dist": "truffle-flattener ./contracts/Mooniswap.sol > ./dist/Mooniswap.full.sol && solcjs --bin --abi --optimize ./dist/Mooniswap.full.sol && mv ./dist/Mooniswap_full_sol_Mooniswap.bin ./dist/Mooniswap.full.bin && mv ./dist/Mooniswap_full_sol_Mooniswap.abi ./dist/Mooniswap.full.abi && rm ./dist/*_sol_*",
-        "dist:factory": "truffle-flattener ./contracts/MooniFactory.sol > ./dist/MooniFactory.full.sol && solcjs --bin --abi --optimize ./dist/MooniFactory.full.sol && mv ./dist/MooniFactory_full_sol_MooniFactory.bin ./dist/MooniFactory.full.bin && mv ./dist/MooniFactory_full_sol_MooniFactory.abi ./dist/MooniFactory.full.abi && rm ./dist/*_sol_*"
+        "dist": "truffle-flattener ./contracts/Mooniswap.sol > ./Mooniswap.full.sol && solcjs --bin --abi --optimize ./Mooniswap.full.sol && mv ./Mooniswap_full_sol_Mooniswap.bin ./Mooniswap.full.bin && mv ./Mooniswap_full_sol_Mooniswap.abi ./Mooniswap.full.abi && rm ./*_sol_*",
+        "dist:factory": "truffle-flattener ./contracts/MooniFactory.sol > ./MooniFactory.full.sol && solcjs --bin --abi --optimize ./MooniFactory.full.sol && mv ./MooniFactory_full_sol_MooniFactory.bin ./MooniFactory.full.bin && mv ./MooniFactory_full_sol_MooniFactory.abi ./MooniFactory.full.abi && rm ./*_sol_*"
     }
 }
