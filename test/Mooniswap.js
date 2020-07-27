@@ -24,8 +24,8 @@ async function timeIncreaseTo (seconds) {
 
 async function checkBalances (mooniswap, token, expectedBalance, expectedAdditionBalance, expectedRemovalBalance) {
     const balance = await token.balanceOf(mooniswap.address);
-    const additionBalance = await mooniswap.getBalanceOnAddition(token.address);
-    const removalBalance = await mooniswap.getBalanceOnRemoval(token.address);
+    const additionBalance = await mooniswap.getBalanceForAddition(token.address);
+    const removalBalance = await mooniswap.getBalanceForRemoval(token.address);
     expect(balance).to.be.bignumber.equal(expectedBalance);
     expect(additionBalance).to.be.bignumber.equal(expectedAdditionBalance);
     expect(removalBalance).to.be.bignumber.equal(expectedRemovalBalance);
@@ -190,8 +190,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
             });
 
             it('should give 50% of tokenB for 100% of tokenA swap as designed by x*y=k', async function () {
-                const wethAdditionBalance = await this.mooniswap.getBalanceOnAddition(this.WETH.address);
-                const daiRemovalBalance = await this.mooniswap.getBalanceOnRemoval(this.DAI.address);
+                const wethAdditionBalance = await this.mooniswap.getBalanceForAddition(this.WETH.address);
+                const daiRemovalBalance = await this.mooniswap.getBalanceForRemoval(this.DAI.address);
                 const result = await this.mooniswap.getReturn(this.WETH.address, this.DAI.address, money.weth('1'));
                 expect(wethAdditionBalance).to.be.bignumber.equal(money.weth('1'));
                 expect(daiRemovalBalance).to.be.bignumber.equal(money.dai('270'));
@@ -207,8 +207,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
 
             it('should be give additive results for the swaps of the same direction', async function () {
                 // Pre-second swap checks
-                const wethAdditionBalance1 = await this.mooniswap.getBalanceOnAddition(this.WETH.address);
-                const daiRemovalBalance1 = await this.mooniswap.getBalanceOnRemoval(this.DAI.address);
+                const wethAdditionBalance1 = await this.mooniswap.getBalanceForAddition(this.WETH.address);
+                const daiRemovalBalance1 = await this.mooniswap.getBalanceForRemoval(this.DAI.address);
                 const result1 = await this.mooniswap.getReturn(this.WETH.address, this.DAI.address, money.weth('0.5'));
                 expect(wethAdditionBalance1).to.be.bignumber.equal(money.weth('1'));
                 expect(daiRemovalBalance1).to.be.bignumber.equal(money.dai('270'));
@@ -223,8 +223,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(received1).to.be.bignumber.equal(money.dai('90'));
 
                 // Pre-second swap checks
-                const wethAdditionBalance2 = await this.mooniswap.getBalanceOnAddition(this.WETH.address);
-                const daiRemovalBalance2 = await this.mooniswap.getBalanceOnRemoval(this.DAI.address);
+                const wethAdditionBalance2 = await this.mooniswap.getBalanceForAddition(this.WETH.address);
+                const daiRemovalBalance2 = await this.mooniswap.getBalanceForRemoval(this.DAI.address);
                 const result2 = await this.mooniswap.getReturn(this.WETH.address, this.DAI.address, money.weth('0.5'));
                 expect(wethAdditionBalance2).to.be.bignumber.equal(money.weth('1.5'));
                 expect(daiRemovalBalance2).to.be.bignumber.equal(money.dai('180'));
@@ -244,8 +244,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
 
             it('should affect reverse price', async function () {
                 // Pre-second swap checks
-                const wethAdditionBalance1 = await this.mooniswap.getBalanceOnAddition(this.WETH.address);
-                const daiRemovalBalance1 = await this.mooniswap.getBalanceOnRemoval(this.DAI.address);
+                const wethAdditionBalance1 = await this.mooniswap.getBalanceForAddition(this.WETH.address);
+                const daiRemovalBalance1 = await this.mooniswap.getBalanceForRemoval(this.DAI.address);
                 const result1 = await this.mooniswap.getReturn(this.WETH.address, this.DAI.address, money.weth('1'));
                 expect(wethAdditionBalance1).to.be.bignumber.equal(money.weth('1'));
                 expect(daiRemovalBalance1).to.be.bignumber.equal(money.dai('270'));
@@ -263,8 +263,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(received1).to.be.bignumber.equal(money.dai('135'));
 
                 // Checks at the start of the decay period
-                const daiAdditionBalance2 = await this.mooniswap.getBalanceOnAddition(this.DAI.address);
-                const wethRemovalBalance2 = await this.mooniswap.getBalanceOnRemoval(this.WETH.address);
+                const daiAdditionBalance2 = await this.mooniswap.getBalanceForAddition(this.DAI.address);
+                const wethRemovalBalance2 = await this.mooniswap.getBalanceForRemoval(this.WETH.address);
                 const result2 = await this.mooniswap.getReturn(this.DAI.address, this.WETH.address, money.dai('270'));
                 expect(daiAdditionBalance2).to.be.bignumber.equal(money.weth('270'));
                 expect(wethRemovalBalance2).to.be.bignumber.equal(money.dai('1'));
@@ -273,8 +273,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 await timeIncreaseTo(started.add((await this.mooniswap.decayPeriod()).divn(2)));
 
                 // Checks at the middle of the decay period
-                const daiAdditionBalance3 = await this.mooniswap.getBalanceOnAddition(this.DAI.address);
-                const wethRemovalBalance3 = await this.mooniswap.getBalanceOnRemoval(this.WETH.address);
+                const daiAdditionBalance3 = await this.mooniswap.getBalanceForAddition(this.DAI.address);
+                const wethRemovalBalance3 = await this.mooniswap.getBalanceForRemoval(this.WETH.address);
                 const result3 = await this.mooniswap.getReturn(this.DAI.address, this.WETH.address, money.dai('202.5'));
                 expect(daiAdditionBalance3).to.be.bignumber.equal(money.dai('202.5'));
                 expect(wethRemovalBalance3).to.be.bignumber.equal(money.weth('1.5'));
@@ -283,8 +283,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 await timeIncreaseTo(started.add(await this.mooniswap.decayPeriod()));
 
                 // Checks at the end of the decay period
-                const daiAdditionBalance4 = await this.mooniswap.getBalanceOnAddition(this.DAI.address);
-                const wethRemovalBalance4 = await this.mooniswap.getBalanceOnRemoval(this.WETH.address);
+                const daiAdditionBalance4 = await this.mooniswap.getBalanceForAddition(this.DAI.address);
+                const wethRemovalBalance4 = await this.mooniswap.getBalanceForRemoval(this.WETH.address);
                 const result4 = await this.mooniswap.getReturn(this.DAI.address, this.WETH.address, money.dai('135'));
                 expect(daiAdditionBalance4).to.be.bignumber.equal(money.dai('135'));
                 expect(wethRemovalBalance4).to.be.bignumber.equal(money.weth('2'));
