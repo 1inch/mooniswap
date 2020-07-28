@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "./libraries/UniERC20.sol";
 import "./libraries/Sqrt.sol";
 
 
@@ -39,7 +39,7 @@ library VirtualBalance {
 contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     using Sqrt for uint256;
     using SafeMath for uint256;
-    using SafeERC20 for IERC20;
+    using UniERC20 for IERC20;
     using VirtualBalance for VirtualBalance.Data;
 
     struct Balances {
@@ -96,19 +96,20 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     }
 
     function getBalanceForAddition(IERC20 token) public view returns(uint256) {
-        return virtualBalancesForAddition[token].current(token.balanceOf(address(this)));
+        return virtualBalancesForAddition[token].current(token.uniBalanceOf(address(this)));
     }
 
     function getBalanceForRemoval(IERC20 token) public view returns(uint256) {
-        return virtualBalancesForRemoval[token].current(token.balanceOf(address(this)));
+        return virtualBalancesForRemoval[token].current(token.uniBalanceOf(address(this)));
     }
 
     function getReturn(IERC20 src, IERC20 dst, uint256 amount) external view returns(uint256) {
         return _getReturn(src, dst, amount, getBalanceForAddition(src), getBalanceForRemoval(dst));
     }
 
-    function deposit(uint256[] memory amounts, uint256 minReturn) external nonReentrant returns(uint256 fairShare) {
+    function deposit(uint256[] memory amounts, uint256 minReturn) external payable nonReentrant returns(uint256 fairShare) {
         require(amounts.length == tokens.length, "Mooniswap: wrong amounts length");
+        require((msg.value > 0) == (tokens[0].isETH() || tokens[1].isETH()), "Mooniswap: wrong value usage");
 
         uint256 totalSupply = totalSupply();
         bool initialDeposit = (totalSupply == 0);
@@ -126,14 +127,15 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             require(amounts[i] > 0, "Mooniswap: amount is zero");
 
             IERC20 token = tokens[i];
-            uint256 preBalance = token.balanceOf(address(this));
+            uint256 preBalance = token.uniBalanceOf(address(this));
 
             // Remember both virtual balances
             uint256 removalBalance = virtualBalancesForRemoval[token].current(preBalance);
             uint256 additionBalance = virtualBalancesForAddition[token].current(preBalance);
 
-            token.safeTransferFrom(msg.sender, address(this), amounts[i]);
-            uint256 confirmed = token.balanceOf(address(this)).sub(preBalance);
+            token.uniTransferFromSenderToThis(amounts[i]);
+            uint256 confirmed = token.uniBalanceOf(address(this))
+                .sub(preBalance).add(msg.value > 0 ? amounts[i] : 0);
 
             // Update both virtual balances
             virtualBalancesForRemoval[token].update(removalBalance);
@@ -158,14 +160,14 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         for (uint i = 0; i < tokens.length; i++) {
             IERC20 token = tokens[i];
 
-            uint256 preBalance = token.balanceOf(address(this));
+            uint256 preBalance = token.uniBalanceOf(address(this));
 
             // Remember both virtual balances
             uint256 tokenAdditonBalance = virtualBalancesForAddition[token].current(preBalance);
             uint256 tokenRemovalBalance = virtualBalancesForRemoval[token].current(preBalance);
 
             uint256 value = preBalance.mul(amount).div(totalSupply);
-            token.safeTransfer(msg.sender, value);
+            token.uniTransfer(msg.sender, value);
             require(i >= minReturns.length || value >= minReturns[i], "Mooniswap: result is not enough");
 
             // Update both virtual balances
@@ -180,10 +182,12 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         emit Withdrawn(msg.sender, amount);
     }
 
-    function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn, address referral) external nonReentrant returns(uint256 result) {
+    function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn, address referral) external payable nonReentrant returns(uint256 result) {
+        require((msg.value == amount) == src.isETH(), "Mooniswap: wrong value usage");
+
         Balances memory balances = Balances({
-            src: src.balanceOf(address(this)),
-            dst: dst.balanceOf(address(this))
+            src: src.uniBalanceOf(address(this)).sub(src.isETH() ? msg.value : 0),
+            dst: dst.uniBalanceOf(address(this))
         });
 
         // Remember virtual balances to the opposit direction
@@ -193,12 +197,12 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         uint256 srcAdditonBalance = virtualBalancesForAddition[src].current(balances.src);
         uint256 dstRemovalBalance = virtualBalancesForRemoval[dst].current(balances.dst);
 
-        src.safeTransferFrom(msg.sender, address(this), amount);
-        uint256 confirmed = src.balanceOf(address(this)).sub(balances.src);
+        src.uniTransferFromSenderToThis(amount);
+        uint256 confirmed = src.uniBalanceOf(address(this)).sub(balances.src);
 
         result = _getReturn(src, dst, confirmed, srcAdditonBalance, dstRemovalBalance);
         require(result > 0 && result >= minReturn, "Mooniswap: return is not enough");
-        dst.safeTransfer(msg.sender, result);
+        dst.uniTransfer(msg.sender, result);
 
         // Update virtual balances to the opposit direction
         virtualBalancesForRemoval[src].update(srcRemovalBalance);
@@ -223,11 +227,11 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
 
     function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
         require(!isToken[token], "Mooniswap: access denied");
-        token.safeTransfer(msg.sender, amount);
+        token.uniTransfer(msg.sender, amount);
     }
 
     function _getReturn(IERC20 src, IERC20 dst, uint256 amount, uint256 srcBalance, uint256 dstBalance) internal view returns(uint256) {
-        if (isToken[src] && isToken[dst]) {
+        if (isToken[src] && isToken[dst] && src != dst && amount > 0) {
             return amount.mul(dstBalance).div(srcBalance.add(amount));
         }
     }
