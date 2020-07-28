@@ -36,6 +36,7 @@ contract MooniFactory is Ownable {
         pool.transferOwnership(owner());
         pools[token1][token2] = pool;
         pools[token2][token1] = pool;
+        allPools.push(pool);
 
         emit Deployed(
             address(pool),
