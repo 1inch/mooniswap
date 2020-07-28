@@ -12,9 +12,9 @@ const money = {
 
 async function trackReceivedToken (token, wallet, txPromise) {
     const preBalance = web3.utils.toBN(
-        (token == constants.ZERO_ADDRESS)
-        ? await web3.eth.getBalance(wallet)
-        : await token.balanceOf(wallet)
+        (token === constants.ZERO_ADDRESS)
+            ? await web3.eth.getBalance(wallet)
+            : await token.balanceOf(wallet),
     );
 
     const txResult = await txPromise();
@@ -26,9 +26,9 @@ async function trackReceivedToken (token, wallet, txPromise) {
     }
 
     const postBalance = web3.utils.toBN(
-        (token == constants.ZERO_ADDRESS)
-        ? await web3.eth.getBalance(wallet)
-        : await token.balanceOf(wallet)
+        (token === constants.ZERO_ADDRESS)
+            ? await web3.eth.getBalance(wallet)
+            : await token.balanceOf(wallet),
     );
 
     return postBalance.sub(preBalance).add(txFees);
@@ -259,14 +259,14 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
 
                 await expectRevert(
                     this.mooniswap.swap(this.WETH.address, this.WETH.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
-                    'Mooniswap: return is not enough'
+                    'Mooniswap: return is not enough',
                 );
             });
 
             it('should fail on too small minReturn argument', async function () {
                 await expectRevert(
                     this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.dai('135').addn(1), constants.ZERO_ADDRESS, { from: wallet2 }),
-                    'Mooniswap: return is not enough'
+                    'Mooniswap: return is not enough',
                 );
             });
 
