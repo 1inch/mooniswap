@@ -28,6 +28,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-
 
+      - name: Coveralls config creation
+        run: |
+          echo "repo_token: ${COVERALLS_SECRET}" > .coveralls.yml
+        env:
+          COVERALLS_SECRET: ${{ secrets.COVERALLS_SECRET }}
+
       - run: yarn
       - run: yarn lint
       - run: yarn test
