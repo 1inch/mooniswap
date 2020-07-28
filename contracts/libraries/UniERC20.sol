@@ -15,6 +15,14 @@ library UniERC20 {
         return (address(token) == address(0));
     }
 
+    function uniBalanceOf(IERC20 token, address account) internal view returns (uint256) {
+        if (isETH(token)) {
+            return account.balance;
+        } else {
+            return token.balanceOf(account);
+        }
+    }
+
     function uniTransfer(IERC20 token, address payable to, uint256 amount) internal {
         if (amount > 0) {
             if (isETH(token)) {
@@ -36,14 +44,6 @@ library UniERC20 {
             } else {
                 token.safeTransferFrom(msg.sender, address(this), amount);
             }
-        }
-    }
-
-    function uniBalanceOf(IERC20 token, address account) internal view returns (uint256) {
-        if (isETH(token)) {
-            return account.balance;
-        } else {
-            return token.balanceOf(account);
         }
     }
 }
