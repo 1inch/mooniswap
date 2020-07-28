@@ -28,7 +28,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-
 
+      - run: |
+          echo "repo_token: ${COVERALLS_SECRET}" > .coveralls.yml
+        env:
+          COVERALLS_SECRET: ${{ secrets.COVERALLS_SECRET }}
+
       - run: yarn
       - run: yarn lint
       - run: yarn test
-      - run: yarn coverage
+      - run: yarn coveralls
+      - run: yarn codechecks
+        env:
+          CC_SECRET: ${{ secrets.CODECHECKS_SECRET }}

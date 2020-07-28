@@ -60,46 +60,57 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
     });
 
     describe('Creation', async function () {
-        it('should be denied with tokens length not eqaul to 2', async function () {
-            await expectRevert(
-                Mooniswap.new([], 'Mooniswap', 'MOON'),
-                'Mooniswap: only 2 tokens allowed',
-            );
-
-            await expectRevert(
-                Mooniswap.new([this.WETH.address], 'Mooniswap', 'MOON'),
-                'Mooniswap: only 2 tokens allowed',
-            );
-
-            await expectRevert(
-                Mooniswap.new([this.WETH.address, this.DAI.address, this.USDC.address], 'Mooniswap', 'MOON'),
-                'Mooniswap: only 2 tokens allowed',
-            );
-        });
-
-        it('should be denied with token duplicates', async function () {
-            await expectRevert(
-                Mooniswap.new([this.WETH.address, this.WETH.address], 'Mooniswap', 'MOON'),
-                'Mooniswap: duplicate tokens',
-            );
-        });
-
         it('should be denied with empty name', async function () {
             await expectRevert(
-                Mooniswap.new([this.WETH.address, this.DAI.address], '', 'MOON'),
+                Mooniswap.new('', 'MOON'),
                 'Mooniswap: name is empty',
             );
         });
 
         it('should be denied with empty symbol', async function () {
             await expectRevert(
-                Mooniswap.new([this.WETH.address, this.DAI.address], 'Mooniswap', ''),
+                Mooniswap.new('Mooniswap', ''),
                 'Mooniswap: symbol is empty',
+            );
+        });
+    });
+
+    describe('Setup', async function () {
+        beforeEach(async function () {
+            this.mooniswap = await Mooniswap.new('Mooniswap', 'MOON');
+        });
+
+        it('should be denied with tokens length not eqaul to 2', async function () {
+            await expectRevert(
+                this.mooniswap.setup([]),
+                'Mooniswap: only 2 tokens allowed',
+            );
+
+            await expectRevert(
+                this.mooniswap.setup([this.WETH.address]),
+                'Mooniswap: only 2 tokens allowed',
+            );
+
+            await expectRevert(
+                this.mooniswap.setup([this.WETH.address, this.DAI.address, this.USDC.address]),
+                'Mooniswap: only 2 tokens allowed',
+            );
+        });
+
+        it('should be denied with token duplicates', async function () {
+            await expectRevert(
+                this.mooniswap.setup([this.DAI.address, this.DAI.address]),
+                'Mooniswap: duplicate tokens',
+            );
+
+            await expectRevert(
+                this.mooniswap.setup([constants.ZERO_ADDRESS, constants.ZERO_ADDRESS]),
+                'Mooniswap: duplicate tokens',
             );
         });
 
         it('should be allowed for 2 different tokens and non-empty name and symbol', async function () {
-            await Mooniswap.new([this.WETH.address, this.DAI.address], 'Mooniswap', 'MOON');
+            await this.mooniswap.setup([this.WETH.address, this.DAI.address]);
         });
     });
 
@@ -152,7 +163,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
 
     describe('Actions', async function () {
         beforeEach(async function () {
-            this.mooniswap = await Mooniswap.new([this.WETH.address, this.DAI.address], 'Mooniswap', 'MOON');
+            this.mooniswap = await Mooniswap.new('Mooniswap', 'MOON');
+            await this.mooniswap.setup([this.WETH.address, this.DAI.address]);
             await this.WETH.mint(wallet1, money.weth('1'));
             await this.DAI.mint(wallet1, money.dai('270'));
             await this.WETH.mint(wallet2, money.weth('10'));

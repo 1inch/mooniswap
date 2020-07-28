@@ -75,10 +75,14 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForAddition;
     mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForRemoval;
 
-    constructor(IERC20[] memory assets, string memory name, string memory symbol) public ERC20(name, symbol) {
-        require(assets.length == 2, "Mooniswap: only 2 tokens allowed");
+    constructor(string memory name, string memory symbol) public ERC20(name, symbol) {
         require(bytes(name).length > 0, "Mooniswap: name is empty");
         require(bytes(symbol).length > 0, "Mooniswap: symbol is empty");
+    }
+
+    function setup(IERC20[] memory assets) external {
+        require(tokens.length == 0, "Mooniswap: already initialized");
+        require(assets.length == 2, "Mooniswap: only 2 tokens allowed");
 
         tokens = assets;
         for (uint i = 0; i < assets.length; i++) {
@@ -108,8 +112,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         require((msg.value > 0) == (tokens[0].isETH() || tokens[1].isETH()), "Mooniswap: wrong value usage");
 
         uint256 totalSupply = totalSupply();
-        bool initialDepsoit = (totalSupply == 0);
-        if (initialDepsoit) {
+        bool initialDeposit = (totalSupply == 0);
+        if (initialDeposit) {
             // Use the greatest token amount for the first deposit
             for (uint i = 0; i < amounts.length; i++) {
                 if (amounts[i] > totalSupply) {
@@ -137,7 +141,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             virtualBalancesForRemoval[token].update(removalBalance);
             virtualBalancesForAddition[token].update(additionBalance);
 
-            uint256 share = initialDepsoit ? totalSupply : totalSupply.mul(confirmed).div(preBalance);
+            uint256 share = initialDeposit ? totalSupply : totalSupply.mul(confirmed).div(preBalance);
             if (share < fairShare) {
                 fairShare = share;
             }
