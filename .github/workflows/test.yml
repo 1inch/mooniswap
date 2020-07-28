@@ -31,5 +31,5 @@ jobs:
       - run: yarn
       - run: yarn lint
       - run: yarn test
-      - run: yarn coverage
+      - run: yarn coveralls
       - run: yarn codechecks
