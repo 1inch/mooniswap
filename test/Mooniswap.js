@@ -17,7 +17,11 @@ async function trackReceivedToken (token, wallet, txPromise) {
             : await token.balanceOf(wallet),
     );
 
-    const txResult = await txPromise();
+    let txResult = await txPromise();
+    if (txResult.receipt) {
+        // Fix coverage since testrpc-sc gives: { tx: ..., receipt: ...}
+        txResult = txResult.receipt;
+    }
     let txFees = web3.utils.toBN('0');
     if (wallet.toLowerCase() === txResult.from.toLowerCase() && token === constants.ZERO_ADDRESS) {
         const receipt = await web3.eth.getTransactionReceipt(txResult.transactionHash);
