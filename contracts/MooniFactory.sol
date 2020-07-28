@@ -3,10 +3,13 @@
 pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./libraries/UniERC20.sol";
 import "./Mooniswap.sol";
 
 
 contract MooniFactory is Ownable {
+    using UniERC20 for IERC20;
+
     event Deployed(
         address indexed mooniswap,
         address indexed token1,
@@ -20,30 +23,16 @@ contract MooniFactory is Ownable {
         return allPools;
     }
 
-    function deploy(address tokenA, address tokenB) external returns(Mooniswap pool) {
+    function deploy(address tokenA, address tokenB) public returns(Mooniswap pool) {
         require(tokenA != tokenB, "Factory: not support same tokens");
 
         (address token1, address token2) = _sortTokens(tokenA, tokenB);
 
-        string memory name = string(abi.encodePacked(
-            "Mooniswap V1 (",
-            ERC20(token1).symbol(),
-            "-",
-            ERC20(token2).symbol(),
-            ")"
-        ));
-
-        string memory symbol = string(abi.encodePacked(
-            "MOON-V1-",
-            ERC20(token1).symbol(),
-            "-",
-            ERC20(token2).symbol()
-        ));
-
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = IERC20(token1);
-        tokens[0] = IERC20(token2);
-        pool = new Mooniswap{salt: salt(token1, token2)}(tokens, name, symbol);
+        tokens[1] = IERC20(token2);
+        pool = new Mooniswap{salt: salt(token1, token2)}("Mooniswap", "MOON-V1");
+        pool.setup(tokens);
         pool.transferOwnership(owner());
         pools[token1][token2] = pool;
         pools[token2][token1] = pool;
@@ -53,6 +42,16 @@ contract MooniFactory is Ownable {
             token1,
             token2
         );
+    }
+
+    function deployAndDeposit(address tokenA, address tokenB, uint256[] memory amounts) external payable returns(Mooniswap pool) {
+        require(tokenA < tokenB, "Factory: invalid tokens order");
+        pool = deploy(tokenA, tokenB);
+
+        IERC20(tokenA).uniTransferFromSenderToThis(amounts[0]);
+        IERC20(tokenB).uniTransferFromSenderToThis(amounts[1]);
+        pool.deposit{value: msg.value}(amounts, 0);
+        IERC20(pool).uniTransfer(msg.sender, IERC20(pool).uniBalanceOf(address(this)));
     }
 
     function salt(address tokenA, address tokenB) public pure returns(bytes32) {

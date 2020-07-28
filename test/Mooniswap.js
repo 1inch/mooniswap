@@ -1,8 +1,9 @@
-const { time, ether, expectRevert } = require('@openzeppelin/test-helpers');
+const { constants, time, ether, expectRevert } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
 
 const money = {
     ether,
+    eth: ether,
     zero: ether('0'),
     weth: ether,
     dai: ether,
@@ -10,10 +11,31 @@ const money = {
 };
 
 async function trackReceivedToken (token, wallet, txPromise) {
-    const preBalance = web3.utils.toBN(await token.balanceOf(wallet));
-    await txPromise();
-    const postBalance = web3.utils.toBN(await token.balanceOf(wallet));
-    return postBalance.sub(preBalance);
+    const preBalance = web3.utils.toBN(
+        (token === constants.ZERO_ADDRESS)
+            ? await web3.eth.getBalance(wallet)
+            : await token.balanceOf(wallet),
+    );
+
+    let txResult = await txPromise();
+    if (txResult.receipt) {
+        // Fix coverage since testrpc-sc gives: { tx: ..., receipt: ...}
+        txResult = txResult.receipt;
+    }
+    let txFees = web3.utils.toBN('0');
+    if (wallet.toLowerCase() === txResult.from.toLowerCase() && token === constants.ZERO_ADDRESS) {
+        const receipt = await web3.eth.getTransactionReceipt(txResult.transactionHash);
+        const tx = await web3.eth.getTransaction(receipt.transactionHash);
+        txFees = web3.utils.toBN(receipt.gasUsed).mul(web3.utils.toBN(tx.gasPrice));
+    }
+
+    const postBalance = web3.utils.toBN(
+        (token === constants.ZERO_ADDRESS)
+            ? await web3.eth.getBalance(wallet)
+            : await token.balanceOf(wallet),
+    );
+
+    return postBalance.sub(preBalance).add(txFees);
 }
 
 async function timeIncreaseTo (seconds) {
@@ -42,52 +64,111 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
     });
 
     describe('Creation', async function () {
-        it('should be denied with tokens length not eqaul to 2', async function () {
-            await expectRevert(
-                Mooniswap.new([], 'Mooniswap', 'MOON'),
-                'Mooniswap: only 2 tokens allowed',
-            );
-
-            await expectRevert(
-                Mooniswap.new([this.WETH.address], 'Mooniswap', 'MOON'),
-                'Mooniswap: only 2 tokens allowed',
-            );
-
-            await expectRevert(
-                Mooniswap.new([this.WETH.address, this.DAI.address, this.USDC.address], 'Mooniswap', 'MOON'),
-                'Mooniswap: only 2 tokens allowed',
-            );
-        });
-
-        it('should be denied with token duplicates', async function () {
-            await expectRevert(
-                Mooniswap.new([this.WETH.address, this.WETH.address], 'Mooniswap', 'MOON'),
-                'Mooniswap: duplicate tokens',
-            );
-        });
-
         it('should be denied with empty name', async function () {
             await expectRevert(
-                Mooniswap.new([this.WETH.address, this.DAI.address], '', 'MOON'),
+                Mooniswap.new('', 'MOON'),
                 'Mooniswap: name is empty',
             );
         });
 
         it('should be denied with empty symbol', async function () {
             await expectRevert(
-                Mooniswap.new([this.WETH.address, this.DAI.address], 'Mooniswap', ''),
+                Mooniswap.new('Mooniswap', ''),
                 'Mooniswap: symbol is empty',
+            );
+        });
+    });
+
+    describe('Setup', async function () {
+        beforeEach(async function () {
+            this.mooniswap = await Mooniswap.new('Mooniswap', 'MOON');
+        });
+
+        it('should be denied with tokens length not eqaul to 2', async function () {
+            await expectRevert(
+                this.mooniswap.setup([]),
+                'Mooniswap: only 2 tokens allowed',
+            );
+
+            await expectRevert(
+                this.mooniswap.setup([this.WETH.address]),
+                'Mooniswap: only 2 tokens allowed',
+            );
+
+            await expectRevert(
+                this.mooniswap.setup([this.WETH.address, this.DAI.address, this.USDC.address]),
+                'Mooniswap: only 2 tokens allowed',
+            );
+        });
+
+        it('should be denied with token duplicates', async function () {
+            await expectRevert(
+                this.mooniswap.setup([this.DAI.address, this.DAI.address]),
+                'Mooniswap: duplicate tokens',
+            );
+
+            await expectRevert(
+                this.mooniswap.setup([constants.ZERO_ADDRESS, constants.ZERO_ADDRESS]),
+                'Mooniswap: duplicate tokens',
             );
         });
 
         it('should be allowed for 2 different tokens and non-empty name and symbol', async function () {
-            await Mooniswap.new([this.WETH.address, this.DAI.address], 'Mooniswap', 'MOON');
+            await this.mooniswap.setup([this.WETH.address, this.DAI.address]);
+        });
+    });
+
+    describe('Raw ETH support', async function () {
+        beforeEach(async function () {
+            this.mooniswap = await Mooniswap.new('Mooniswap', 'MOON');
+            await this.mooniswap.setup([constants.ZERO_ADDRESS, this.DAI.address]);
+            await this.DAI.mint(wallet1, money.dai('270'));
+            await this.DAI.mint(wallet2, money.dai('2700'));
+            await this.DAI.approve(this.mooniswap.address, money.dai('270'), { from: wallet1 });
+            await this.DAI.approve(this.mooniswap.address, money.dai('2700'), { from: wallet2 });
+
+            await this.mooniswap.deposit([money.eth('1'), money.dai('270')], money.dai('270'), { value: money.eth('1'), from: wallet1 });
+            expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
+            await timeIncreaseTo((await time.latest()).add(await this.mooniswap.decayPeriod()));
+        });
+
+        it('should support ETH to DAI', async function () {
+            const wethAdditionBalance = await this.mooniswap.getBalanceForAddition(constants.ZERO_ADDRESS);
+            const daiRemovalBalance = await this.mooniswap.getBalanceForRemoval(this.DAI.address);
+            const result = await this.mooniswap.getReturn(constants.ZERO_ADDRESS, this.DAI.address, money.eth('1'));
+            expect(wethAdditionBalance).to.be.bignumber.equal(money.eth('1'));
+            expect(daiRemovalBalance).to.be.bignumber.equal(money.dai('270'));
+            expect(result).to.be.bignumber.equal(money.dai('135'));
+
+            const received = await trackReceivedToken(
+                this.DAI,
+                wallet2,
+                () => this.mooniswap.swap(constants.ZERO_ADDRESS, this.DAI.address, money.eth('1'), money.zero, constants.ZERO_ADDRESS, { value: money.eth('1'), from: wallet2 }),
+            );
+            expect(received).to.be.bignumber.equal(money.dai('135'));
+        });
+
+        it('should support DAI to ETH', async function () {
+            const daiAdditionBalance = await this.mooniswap.getBalanceForAddition(this.DAI.address);
+            const ethRemovalBalance = await this.mooniswap.getBalanceForRemoval(constants.ZERO_ADDRESS);
+            const result = await this.mooniswap.getReturn(this.DAI.address, constants.ZERO_ADDRESS, money.dai('270'));
+            expect(daiAdditionBalance).to.be.bignumber.equal(money.dai('270'));
+            expect(ethRemovalBalance).to.be.bignumber.equal(money.eth('1'));
+            expect(result).to.be.bignumber.equal(money.eth('0.5'));
+
+            const received = await trackReceivedToken(
+                constants.ZERO_ADDRESS,
+                wallet2,
+                () => this.mooniswap.swap(this.DAI.address, constants.ZERO_ADDRESS, money.dai('270'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
+            );
+            expect(received).to.be.bignumber.equal(money.eth('0.5'));
         });
     });
 
     describe('Actions', async function () {
         beforeEach(async function () {
-            this.mooniswap = await Mooniswap.new([this.WETH.address, this.DAI.address], 'Mooniswap', 'MOON');
+            this.mooniswap = await Mooniswap.new('Mooniswap', 'MOON');
+            await this.mooniswap.setup([this.WETH.address, this.DAI.address]);
             await this.WETH.mint(wallet1, money.weth('1'));
             await this.DAI.mint(wallet1, money.dai('270'));
             await this.WETH.mint(wallet2, money.weth('10'));
@@ -189,6 +270,23 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 await timeIncreaseTo((await time.latest()).add(await this.mooniswap.decayPeriod()));
             });
 
+            it('should not swap token to itself', async function () {
+                const result = await this.mooniswap.getReturn(this.WETH.address, this.WETH.address, money.weth('1'));
+                expect(result).to.be.bignumber.equal(money.zero);
+
+                await expectRevert(
+                    this.mooniswap.swap(this.WETH.address, this.WETH.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
+                    'Mooniswap: return is not enough',
+                );
+            });
+
+            it('should fail on too small minReturn argument', async function () {
+                await expectRevert(
+                    this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.dai('135').addn(1), constants.ZERO_ADDRESS, { from: wallet2 }),
+                    'Mooniswap: return is not enough',
+                );
+            });
+
             it('should give 50% of tokenB for 100% of tokenA swap as designed by x*y=k', async function () {
                 const wethAdditionBalance = await this.mooniswap.getBalanceForAddition(this.WETH.address);
                 const daiRemovalBalance = await this.mooniswap.getBalanceForRemoval(this.DAI.address);
@@ -200,7 +298,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const received = await trackReceivedToken(
                     this.DAI,
                     wallet2,
-                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, { from: wallet2 }),
+                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
                 );
                 expect(received).to.be.bignumber.equal(money.dai('135'));
             });
@@ -218,7 +316,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const received1 = await trackReceivedToken(
                     this.DAI,
                     wallet2,
-                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('0.5'), money.zero, { from: wallet2 }),
+                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('0.5'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
                 );
                 expect(received1).to.be.bignumber.equal(money.dai('90'));
 
@@ -234,7 +332,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const received2 = await trackReceivedToken(
                     this.DAI,
                     wallet2,
-                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('0.5'), money.zero, { from: wallet2 }),
+                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('0.5'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
                 );
                 expect(received2).to.be.bignumber.equal(money.dai('45'));
 
@@ -258,7 +356,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const received1 = await trackReceivedToken(
                     this.DAI,
                     wallet2,
-                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, { from: wallet2 }),
+                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
                 );
                 expect(received1).to.be.bignumber.equal(money.dai('135'));
 
@@ -294,7 +392,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const received2 = await trackReceivedToken(
                     this.WETH,
                     wallet2,
-                    () => this.mooniswap.swap(this.DAI.address, this.WETH.address, money.dai('135'), money.zero, { from: wallet2 }),
+                    () => this.mooniswap.swap(this.DAI.address, this.WETH.address, money.dai('135'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
                 );
                 expect(received2).to.be.bignumber.equal(money.weth('1'));
             });
@@ -311,6 +409,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.DAI.address,
                         money.weth('1'),
                         money.zero,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 )).to.be.bignumber.equal(money.dai('135'));
@@ -326,6 +425,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('270'),
                         money.zero,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 )).to.be.bignumber.equal(money.weth('0.5'));
@@ -346,6 +446,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.DAI.address,
                         money.weth('1.75'),
                         money.zero,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 )).to.be.bignumber.equal(money.dai('135'));
@@ -361,6 +462,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('472.5'),
                         money.zero,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 )).to.be.bignumber.equal(money.weth('0.5'));
@@ -381,7 +483,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const started = (await time.latest()).addn(10);
                 await timeIncreaseTo(started);
 
-                await this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, { from: wallet2 });
+                await this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 });
 
                 await timeIncreaseTo(started.add((await this.mooniswap.decayPeriod()).divn(2)));
 
@@ -402,7 +504,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const started = (await time.latest()).addn(10);
                 await timeIncreaseTo(started);
 
-                await this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, { from: wallet2 });
+                await this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 });
 
                 await checkBalances(this.mooniswap, this.WETH, money.weth('2'), money.weth('2'), money.weth('1'));
                 await checkBalances(this.mooniswap, this.DAI, money.dai('135'), money.dai('270'), money.dai('135'));
@@ -435,6 +537,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('101.25'),
                         money.zero,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 );
@@ -476,6 +579,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('168'),
                         money.zero,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 );
@@ -494,6 +598,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         this.WETH.address,
                         money.dai('56'),
                         money.zero,
+                        constants.ZERO_ADDRESS,
                         { from: wallet2 },
                     ),
                 );
