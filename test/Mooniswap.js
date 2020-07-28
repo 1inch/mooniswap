@@ -105,7 +105,8 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
 
     describe('Raw ETH support', async function () {
         beforeEach(async function () {
-            this.mooniswap = await Mooniswap.new([constants.ZERO_ADDRESS, this.DAI.address], 'Mooniswap', 'MOON');
+            this.mooniswap = await Mooniswap.new('Mooniswap', 'MOON');
+            this.mooniswap.setup([constants.ZERO_ADDRESS, this.DAI.address]);
             await this.DAI.mint(wallet1, money.dai('270'));
             await this.DAI.mint(wallet2, money.dai('2700'));
             await this.DAI.approve(this.mooniswap.address, money.dai('270'), { from: wallet1 });
