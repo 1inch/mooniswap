@@ -45,21 +45,6 @@ contract MooniFactory is Ownable {
         );
     }
 
-    function deployAndDeposit(address tokenA, address tokenB, uint256[] memory amounts) external payable returns(Mooniswap pool) {
-        require(tokenA < tokenB, "Factory: invalid tokens order");
-        pool = deploy(tokenA, tokenB);
-
-        IERC20(tokenA).uniTransferFromSenderToThis(amounts[0]);
-        IERC20(tokenB).uniTransferFromSenderToThis(amounts[1]);
-        amounts[0] = IERC20(tokenA).uniBalanceOf(address(this));
-        amounts[1] = IERC20(tokenB).uniBalanceOf(address(this));
-
-        IERC20(tokenA).uniApprove(address(pool), amounts[0]);
-        IERC20(tokenB).uniApprove(address(pool), amounts[1]);
-        pool.deposit{value: msg.value}(amounts, 0);
-        IERC20(pool).uniTransfer(msg.sender, IERC20(pool).uniBalanceOf(address(this)));
-    }
-
     function salt(address tokenA, address tokenB) public pure returns(bytes32) {
         return bytes32(
             uint256(uint128(uint160(tokenB))) |
