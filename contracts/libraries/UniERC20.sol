@@ -15,6 +15,14 @@ library UniERC20 {
         return (address(token) == address(0));
     }
 
+    function uniBalanceOf(IERC20 token, address account) internal view returns (uint256) {
+        if (isETH(token)) {
+            return account.balance;
+        } else {
+            return token.balanceOf(account);
+        }
+    }
+
     function uniTransfer(IERC20 token, address payable to, uint256 amount) internal {
         if (amount > 0) {
             if (isETH(token)) {
@@ -39,11 +47,19 @@ library UniERC20 {
         }
     }
 
-    function uniBalanceOf(IERC20 token, address account) internal view returns (uint256) {
-        if (isETH(token)) {
-            return account.balance;
-        } else {
-            return token.balanceOf(account);
+    function uniApprove(IERC20 token, address to, uint256 amount) internal {
+        if (!isETH(token)) {
+            if (amount == 0) {
+                token.safeApprove(to, 0);
+            } else {
+                uint256 allowance = token.allowance(address(this), to);
+                if (allowance < amount) {
+                    if (allowance > 0) {
+                        token.safeApprove(to, 0);
+                    }
+                    token.safeApprove(to, amount);
+                }
+            }
         }
     }
 }
