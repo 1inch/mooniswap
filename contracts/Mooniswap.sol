@@ -125,7 +125,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
 
             // Use the greatest token amount but not less than 99k for the initial supply
             for (uint i = 0; i < amounts.length; i++) {
-                if (amounts[i] > totalSupply) {
+                if (amounts[i] > fairSupply) {
                     fairSupply = amounts[i];
                 }
             }
