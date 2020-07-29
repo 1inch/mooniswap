@@ -69,6 +69,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     );
 
     uint256 public constant REFERRAL_SHARE = 20; // 1/share = 5% of LPs revenue
+    uint256 public constant BASE_SUPPLY = 1000;  // Total supply on first deposit
 
     IERC20[] public tokens;
     mapping(IERC20 => bool) public isToken;
@@ -112,17 +113,21 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         require((msg.value > 0) == (tokens[0].isETH() || tokens[1].isETH()), "Mooniswap: wrong value usage");
 
         uint256 totalSupply = totalSupply();
-        bool initialDeposit = (totalSupply == 0);
-        if (initialDeposit) {
-            // Use the greatest token amount for the first deposit
+        if (totalSupply == 0) {
+            fairShare = BASE_SUPPLY.mul(99);
+            _mint(address(this), BASE_SUPPLY); // Donate up to 1%
+
+            // Use the greatest token amount but not less than 99k for the initial supply
             for (uint i = 0; i < amounts.length; i++) {
                 if (amounts[i] > totalSupply) {
-                    totalSupply = amounts[i];
+                    fairShare = amounts[i];
                 }
             }
         }
+        else {
+            fairShare = type(uint256).max;
+        }
 
-        fairShare = type(uint256).max;
         for (uint i = 0; i < amounts.length; i++) {
             require(amounts[i] > 0, "Mooniswap: amount is zero");
 
@@ -140,9 +145,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             virtualBalancesForRemoval[token].update(removalBalance);
             virtualBalancesForAddition[token].update(additionBalance);
 
-            uint256 share = initialDeposit ? totalSupply : totalSupply.mul(confirmed).div(preBalance);
-            if (share < fairShare) {
-                fairShare = share;
+            if (totalSupply > 0) {
+                fairShare = Math.min(fairShare, totalSupply.mul(confirmed).div(preBalance));
             }
         }
 
@@ -227,6 +231,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
         require(!isToken[token], "Mooniswap: access denied");
         token.uniTransfer(msg.sender, amount);
+        require(balanceOf(address(this)) >= BASE_SUPPLY, "Mooniswap: access denied");
     }
 
     function _getReturn(IERC20 src, IERC20 dst, uint256 amount, uint256 srcBalance, uint256 dstBalance) internal view returns(uint256) {

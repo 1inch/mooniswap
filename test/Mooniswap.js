@@ -231,7 +231,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
 
                 await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet2 });
-                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('270'));
+                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('270').addn(1000));
             });
 
             it('should give the proportional shares for the proportional deposits', async function () {
@@ -239,7 +239,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
 
                 await this.mooniswap.deposit([money.weth('10'), money.dai('2700')], money.dai('2700'), { from: wallet2 });
-                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('2700'));
+                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('2700').addn(10000));
             });
 
             it('should give the right shares for the repeated deposits', async function () {
@@ -247,10 +247,10 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
 
                 await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet2 });
-                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('270'));
+                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('270').addn(1000));
 
                 await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet2 });
-                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('540'));
+                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('540').addn(2000));
             });
 
             it('should give less share on unbalanced deposits', async function () {
@@ -258,7 +258,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
 
                 await this.mooniswap.deposit([money.weth('1'), money.dai('271')], money.dai('270'), { from: wallet2 });
-                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('270'));
+                expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('270').addn(1000));
                 expect(await this.DAI.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('2429'));
             });
         });
@@ -497,7 +497,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                     ),
                 );
 
-                expect(received2).to.be.bignumber.equal(money.dai('270'));
+                expect(received2).to.be.bignumber.equal(money.dai('270').addn(1000));
             });
 
             it('should not update rates after imbalanced deposit', async function () {
@@ -523,7 +523,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         { from: wallet2 },
                     ),
                 );
-                expect(received).to.be.bignumber.equal(money.dai('270'));
+                expect(received).to.be.bignumber.equal(money.dai('270').addn(1000));
 
                 await checkBalances(this.mooniswap, this.WETH, money.weth('4'), money.weth('2'), money.weth('1.5'));
                 await checkBalances(this.mooniswap, this.DAI, money.dai('270'), money.dai('202.5'), money.dai('135'));
@@ -559,7 +559,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                         { from: wallet2 },
                     ),
                 );
-                expect(received).to.be.bignumber.equal(money.dai('270'));
+                expect(received).to.be.bignumber.equal(money.dai('270').addn(1000));
 
                 // Pool contains 2 WETH and 540 DAI.
                 // Real price is 1 WETH for 540 DAI so there is an arbitrage opportunity to buy cheap ether.
@@ -620,20 +620,20 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
             it('should be able to exit fully', async function () {
                 await this.mooniswap.withdraw(money.dai('270'), [], { from: wallet1 });
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.zero);
-                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
-                expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
+                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal('1000');
+                expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal('4');
             });
 
             it('should be able to exit partially', async function () {
                 await this.mooniswap.withdraw(money.dai('135'), [], { from: wallet1 });
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('135'));
-                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.dai('135'));
-                expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.weth('0.5'));
+                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.dai('135').addn(500));
+                expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.weth('0.5').addn(2));
 
                 await this.mooniswap.withdraw(money.dai('135'), [], { from: wallet1 });
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.zero);
-                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
-                expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
+                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal('1000');
+                expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal('4');
             });
 
             it('2 users should be able to exit', async function () {
@@ -645,13 +645,13 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
 
                 await this.mooniswap.withdraw(money.dai('270'), [], { from: wallet1 });
                 expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.zero);
-                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.dai('270'));
-                expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.weth('1'));
+                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.dai('270').addn(1000));
+                expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.weth('1').addn(4));
 
-                await this.mooniswap.withdraw(money.dai('270'), [], { from: wallet2 });
+                await this.mooniswap.withdraw(money.dai('270').addn(1000), [], { from: wallet2 });
                 expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.zero);
-                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
-                expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal(money.zero);
+                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal('1000');
+                expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal('4');
             });
         });
     });
