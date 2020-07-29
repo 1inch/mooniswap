@@ -229,8 +229,16 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     }
 
     function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
-        require(!isToken[token], "Mooniswap: access denied");
+        uint256[] memory balances = new uint256[](tokens.length);
+        for (uint i = 0; i < balances.length; i++) {
+            balances[i] = tokens[i].uniBalanceOf(address(this));
+        }
+
         token.uniTransfer(msg.sender, amount);
+
+        for (uint i = 0; i < balances.length; i++) {
+            require(tokens[i].uniBalanceOf(address(this)) >= balances[i], "Mooniswap: access denied");
+        }
         require(balanceOf(address(this)) >= BASE_SUPPLY, "Mooniswap: access denied");
     }
 
