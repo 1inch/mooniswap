@@ -108,52 +108,59 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         return _getReturn(src, dst, amount, getBalanceForAddition(src), getBalanceForRemoval(dst));
     }
 
-    function deposit(uint256[] memory amounts, uint256 minReturn) external payable nonReentrant returns(uint256 fairShare) {
+    function deposit(uint256[] memory amounts, uint256 minReturn) external payable nonReentrant returns(uint256 fairSupply) {
         require(amounts.length == tokens.length, "Mooniswap: wrong amounts length");
         require((msg.value > 0) == (tokens[0].isETH() || tokens[1].isETH()), "Mooniswap: wrong value usage");
 
+        uint256[] memory preBalances = new uint256[](amounts.length);
+        for (uint i = 0; i < preBalances.length; i++) {
+            IERC20 token = tokens[i];
+            preBalances[i] = token.uniBalanceOf(address(this)).sub(token.isETH() ? amounts[i] : 0);
+        }
+
         uint256 totalSupply = totalSupply();
         if (totalSupply == 0) {
-            fairShare = BASE_SUPPLY.mul(99);
+            fairSupply = BASE_SUPPLY.mul(99);
             _mint(address(this), BASE_SUPPLY); // Donate up to 1%
 
             // Use the greatest token amount but not less than 99k for the initial supply
             for (uint i = 0; i < amounts.length; i++) {
                 if (amounts[i] > totalSupply) {
-                    fairShare = amounts[i];
+                    fairSupply = amounts[i];
                 }
             }
         }
         else {
-            fairShare = type(uint256).max;
+            // Pre-compute fair supply
+            fairSupply = type(uint256).max;
+            for (uint i = 0; i < amounts.length; i++) {
+                fairSupply = Math.min(fairSupply, totalSupply.mul(amounts[i]).div(preBalances[i]));
+            }
         }
 
         for (uint i = 0; i < amounts.length; i++) {
+            IERC20 token = tokens[i];
             require(amounts[i] > 0, "Mooniswap: amount is zero");
 
-            IERC20 token = tokens[i];
-            uint256 preBalance = token.uniBalanceOf(address(this)).sub(token.isETH() ? amounts[i] : 0);
-
             // Remember both virtual balances
-            uint256 removalBalance = virtualBalancesForRemoval[token].current(preBalance);
-            uint256 additionBalance = virtualBalancesForAddition[token].current(preBalance);
+            uint256 removalBalance = virtualBalancesForRemoval[token].current(preBalances[i]);
+            uint256 additionBalance = virtualBalancesForAddition[token].current(preBalances[i]);
 
-            token.uniTransferFromSenderToThis(amounts[i]);
-            uint256 confirmed = token.uniBalanceOf(address(this)).sub(preBalance);
+            token.uniTransferFromSenderToThis(totalSupply == 0 ? amounts[i] : preBalances[i].mul(fairSupply).div(totalSupply));
+            if (totalSupply > 0) {
+                uint256 confirmed = token.uniBalanceOf(address(this)).sub(preBalances[i]);
+                fairSupply = Math.min(fairSupply, totalSupply.mul(confirmed).div(preBalances[i]));
+            }
 
             // Update both virtual balances
             virtualBalancesForRemoval[token].update(removalBalance);
             virtualBalancesForAddition[token].update(additionBalance);
-
-            if (totalSupply > 0) {
-                fairShare = Math.min(fairShare, totalSupply.mul(confirmed).div(preBalance));
-            }
         }
 
-        require(fairShare > 0 && fairShare >= minReturn, "Mooniswap: result is not enough");
-        _mint(msg.sender, fairShare);
+        require(fairSupply > 0 && fairSupply >= minReturn, "Mooniswap: result is not enough");
+        _mint(msg.sender, fairSupply);
 
-        emit Deposited(msg.sender, fairShare);
+        emit Deposited(msg.sender, fairSupply);
     }
 
     function withdraw(uint256 amount, uint256[] memory minReturns) external nonReentrant {

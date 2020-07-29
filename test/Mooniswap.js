@@ -259,7 +259,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
 
                 await this.mooniswap.deposit([money.weth('1'), money.dai('271')], money.dai('270'), { from: wallet2 });
                 expect(await this.mooniswap.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('270').addn(1000));
-                expect(await this.DAI.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('2429'));
+                expect(await this.DAI.balanceOf(wallet2)).to.be.bignumber.equal(money.dai('2430'));
             });
         });
 
