@@ -127,15 +127,14 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             require(amounts[i] > 0, "Mooniswap: amount is zero");
 
             IERC20 token = tokens[i];
-            uint256 preBalance = token.uniBalanceOf(address(this));
+            uint256 preBalance = token.uniBalanceOf(address(this)).sub(token.isETH() ? amounts[i] : 0);
 
             // Remember both virtual balances
             uint256 removalBalance = virtualBalancesForRemoval[token].current(preBalance);
             uint256 additionBalance = virtualBalancesForAddition[token].current(preBalance);
 
             token.uniTransferFromSenderToThis(amounts[i]);
-            uint256 confirmed = token.uniBalanceOf(address(this))
-                .sub(preBalance).add(msg.value > 0 ? amounts[i] : 0);
+            uint256 confirmed = token.uniBalanceOf(address(this)).sub(preBalance);
 
             // Update both virtual balances
             virtualBalancesForRemoval[token].update(removalBalance);
