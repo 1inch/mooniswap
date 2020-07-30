@@ -70,9 +70,10 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         address indexed src,
         address indexed dst,
         uint256 amount,
-        uint256 srcPreBalance,
-        uint256 dstPreBalance,
         uint256 result,
+        uint256 srcBalance,
+        uint256 dstBalance,
+        uint256 totalSupply,
         address referral
     );
 
@@ -214,7 +215,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         virtualBalancesForRemoval[src].update(balances.src);
         virtualBalancesForAddition[dst].update(balances.dst);
 
-        emit Swapped(msg.sender, address(src), address(dst), confirmed, balances.src, balances.dst, result, referral);
+        emit Swapped(msg.sender, address(src), address(dst), confirmed, result, balances.src, balances.dst, totalSupply(), referral);
 
         if (referral != address(0)) {
             uint256 invariantRatio = uint256(1e36);
