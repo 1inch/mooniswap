@@ -79,6 +79,10 @@ library UniERC20 {
             len++;
         }
 
+        if (len == 0) {
+            return _toHex(address(token));
+        }
+
         bytes memory result = new bytes(len);
         for (uint i = 0; i < len; i++) {
             result[i] = data[i];

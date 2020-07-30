@@ -32,22 +32,13 @@ contract MooniFactory is Ownable {
         tokens[0] = token1;
         tokens[1] = token2;
 
-        string memory name = string(abi.encodePacked(
-            "Mooniswap V1 (",
-            token1.uniSymbol(),
-            "-",
-            token2.uniSymbol(),
-            ")"
-        ));
+        string memory symbol1 = token1.uniSymbol();
+        string memory symbol2 = token2.uniSymbol();
 
-        string memory symbol = string(abi.encodePacked(
-            "MOON-V1-",
-            token1.uniSymbol(),
-            "-",
-            token2.uniSymbol()
-        ));
-
-        pool = new Mooniswap(name, symbol);
+        pool = new Mooniswap(
+            string(abi.encodePacked("Mooniswap V1 (", symbol1, "-", symbol2, ")")),
+            string(abi.encodePacked("MOON-V1-", symbol1, "-", symbol2))
+        );
         pool.setup(tokens);
 
         pool.transferOwnership(owner());
