@@ -180,7 +180,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
 
             // Update both virtual balances
             virtualBalancesForAddition[token].update(
-                tokenAdditonBalance.sub(Math.min(tokenAdditonBalance, value))
+                tokenAdditonBalance.sub(value)
             );
             virtualBalancesForRemoval[token].update(
                 tokenRemovalBalance.sub(Math.min(tokenRemovalBalance, value))
