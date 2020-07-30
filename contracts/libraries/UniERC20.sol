@@ -62,7 +62,7 @@ library UniERC20 {
         }
 
         if (!success) {
-            return "###";
+            return toHex(address(token));
         }
 
         uint len = 0;
@@ -76,5 +76,23 @@ library UniERC20 {
         }
 
         return string(result);
+    }
+
+    function toHex(address account) private pure returns(string memory) {
+        return toHex(abi.encodePacked(account));
+    }
+
+    function toHex(bytes memory data) public pure returns(string memory) {
+        bytes memory alphabet = "0123456789abcdef";
+
+        bytes memory str = new bytes(2 + data.length * 2);
+        str[0] = '0';
+        str[1] = 'x';
+        for (uint i = 0; i < data.length; i++) {
+            str[2 + i*2] = alphabet[uint(uint8(data[i] >> 4))];
+            str[3 + i*2] = alphabet[uint(uint8(data[i] & 0x0f))];
+        }
+
+        return string(str);
     }
 }
