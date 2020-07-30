@@ -27,13 +27,11 @@ library VirtualBalance {
     }
 
     function update(VirtualBalance.Data storage self, uint256 realBalance) internal {
-        self.balance = uint216(current(self, realBalance));
-        self.time = uint40(block.timestamp);
+        set(self, current(self, realBalance));
     }
 
     function scale(VirtualBalance.Data storage self, uint256 realBalance, uint256 num, uint256 denom) internal {
-        self.balance = uint216(current(self, realBalance).mul(num).div(denom));
-        self.time = uint40(block.timestamp);
+        set(self, current(self, realBalance).mul(num).div(denom));
     }
 
     function current(VirtualBalance.Data memory self, uint256 realBalance) internal view returns(uint256) {
