@@ -101,6 +101,10 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         }
     }
 
+    function getTokens() external view returns(IERC20[] memory) {
+        return tokens;
+    }
+
     function decayPeriod() external pure returns(uint256) {
         return VirtualBalance.DECAY_PERIOD;
     }
