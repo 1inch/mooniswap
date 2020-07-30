@@ -65,8 +65,17 @@ library UniERC20 {
             return _toHex(address(token));
         }
 
+        if (data.length >= 64) {
+            // Support symbols with upto 256 length
+            if (data[33] == 0) {
+                data = abi.decode(data, (bytes));
+            } else {
+                return _toHex(address(token));
+            }
+        }
+
         uint len = 0;
-        while (data[len] >= 0x20 && data[len] <= 0x7E && len < data.length) {
+        while (len < data.length && data[len] >= 0x20 && data[len] <= 0x7E) {
             len++;
         }
 
