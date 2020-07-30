@@ -46,4 +46,35 @@ library UniERC20 {
             }
         }
     }
+
+    function uniSymbol(IERC20 token) internal view returns(string memory) {
+        if (isETH(token)) {
+            return "ETH";
+        }
+
+        (bool success, bytes memory data) = address(token).staticcall{ gas: 20000 }(
+            abi.encodeWithSignature("symbol()")
+        );
+        if (!success) {
+            (success, data) = address(token).staticcall{ gas: 20000 }(
+                abi.encodeWithSignature("SYMBOL()")
+            );
+        }
+
+        if (!success) {
+            return "###";
+        }
+
+        uint len = 0;
+        while (data[len] >= 0x20 && data[len] <= 0x7E && len < data.length) {
+            len++;
+        }
+
+        bytes memory result = new bytes(len);
+        for (uint i = 0; i < len; i++) {
+            result[i] = data[i];
+        }
+
+        return string(result);
+    }
 }
