@@ -21,8 +21,18 @@ library VirtualBalance {
 
     uint256 public constant DECAY_PERIOD = 5 minutes;
 
-    function update(VirtualBalance.Data storage self, uint256 balance) internal {
+    function set(VirtualBalance.Data storage self, uint256 balance) internal {
         self.balance = uint216(balance);
+        self.time = uint40(block.timestamp);
+    }
+
+    function update(VirtualBalance.Data storage self, uint256 realBalance) internal {
+        self.balance = uint216(current(self, realBalance));
+        self.time = uint40(block.timestamp);
+    }
+
+    function scale(VirtualBalance.Data storage self, uint256 realBalance, uint256 num, uint256 denom) internal {
+        self.balance = uint216(current(self, realBalance).mul(num).div(denom));
         self.time = uint40(block.timestamp);
     }
 
@@ -112,10 +122,10 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         require(amounts.length == tokens.length, "Mooniswap: wrong amounts length");
         require((msg.value > 0) == (tokens[0].isETH() || tokens[1].isETH()), "Mooniswap: wrong value usage");
 
-        uint256[] memory preBalances = new uint256[](amounts.length);
-        for (uint i = 0; i < preBalances.length; i++) {
-            IERC20 token = tokens[i];
-            preBalances[i] = token.uniBalanceOf(address(this)).sub(token.isETH() ? amounts[i] : 0);
+        IERC20[] memory _tokens = tokens;
+        uint256[] memory realBalances = new uint256[](amounts.length);
+        for (uint i = 0; i < realBalances.length; i++) {
+            realBalances[i] = _tokens[i].uniBalanceOf(address(this)).sub(_tokens[i].isETH() ? amounts[i] : 0);
         }
 
         uint256 totalSupply = totalSupply();
@@ -132,27 +142,24 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             // Pre-compute fair supply
             fairSupply = type(uint256).max;
             for (uint i = 0; i < amounts.length; i++) {
-                fairSupply = Math.min(fairSupply, totalSupply.mul(amounts[i]).div(preBalances[i]));
+                fairSupply = Math.min(fairSupply, totalSupply.mul(amounts[i]).div(realBalances[i]));
             }
         }
 
         for (uint i = 0; i < amounts.length; i++) {
-            IERC20 token = tokens[i];
             require(amounts[i] > 0, "Mooniswap: amount is zero");
-
-            // Remember both virtual balances
-            uint256 removalBalance = virtualBalancesForRemoval[token].current(preBalances[i]);
-            uint256 additionBalance = virtualBalancesForAddition[token].current(preBalances[i]);
-
-            token.uniTransferFromSenderToThis(totalSupply == 0 ? amounts[i] : preBalances[i].mul(fairSupply).div(totalSupply));
+            _tokens[i].uniTransferFromSenderToThis(totalSupply == 0 ? amounts[i] : realBalances[i].mul(fairSupply).div(totalSupply));
             if (totalSupply > 0) {
-                uint256 confirmed = token.uniBalanceOf(address(this)).sub(preBalances[i]);
-                fairSupply = Math.min(fairSupply, totalSupply.mul(confirmed).div(preBalances[i]));
+                uint256 confirmed = _tokens[i].uniBalanceOf(address(this)).sub(realBalances[i]);
+                fairSupply = Math.min(fairSupply, totalSupply.mul(confirmed).div(realBalances[i]));
             }
+        }
 
-            // Update both virtual balances
-            virtualBalancesForRemoval[token].update(removalBalance);
-            virtualBalancesForAddition[token].update(additionBalance);
+        if (totalSupply > 0) {
+            for (uint i = 0; i < amounts.length; i++) {
+                virtualBalancesForRemoval[_tokens[i]].scale(realBalances[i], totalSupply.add(fairSupply), totalSupply);
+                virtualBalancesForAddition[_tokens[i]].scale(realBalances[i], totalSupply.add(fairSupply), totalSupply);
+            }
         }
 
         require(fairSupply > 0 && fairSupply >= minReturn, "Mooniswap: result is not enough");
@@ -169,22 +176,12 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             IERC20 token = tokens[i];
 
             uint256 preBalance = token.uniBalanceOf(address(this));
-
-            // Remember both virtual balances
-            uint256 tokenAdditonBalance = virtualBalancesForAddition[token].current(preBalance);
-            uint256 tokenRemovalBalance = virtualBalancesForRemoval[token].current(preBalance);
-
             uint256 value = preBalance.mul(amount).div(totalSupply);
             token.uniTransfer(msg.sender, value);
             require(i >= minReturns.length || value >= minReturns[i], "Mooniswap: result is not enough");
 
-            // Update both virtual balances
-            virtualBalancesForAddition[token].update(
-                tokenAdditonBalance.sub(Math.min(tokenAdditonBalance, value))
-            );
-            virtualBalancesForRemoval[token].update(
-                tokenRemovalBalance.sub(Math.min(tokenRemovalBalance, value))
-            );
+            virtualBalancesForAddition[token].scale(preBalance, totalSupply.sub(amount), totalSupply);
+            virtualBalancesForRemoval[token].scale(preBalance, totalSupply.sub(amount), totalSupply);
         }
 
         emit Withdrawn(msg.sender, amount);
@@ -198,30 +195,26 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             dst: dst.uniBalanceOf(address(this))
         });
 
-        // Remember virtual balances to the opposit direction
-        uint256 srcRemovalBalance = virtualBalancesForRemoval[src].current(balances.src);
-        uint256 dstAdditionBalance = virtualBalancesForAddition[dst].current(balances.dst);
-        // Remember virtual balances to the same direction
         uint256 srcAdditonBalance = virtualBalancesForAddition[src].current(balances.src);
         uint256 dstRemovalBalance = virtualBalancesForRemoval[dst].current(balances.dst);
 
         src.uniTransferFromSenderToThis(amount);
         uint256 confirmed = src.uniBalanceOf(address(this)).sub(balances.src);
-
         result = _getReturn(src, dst, confirmed, srcAdditonBalance, dstRemovalBalance);
         require(result > 0 && result >= minReturn, "Mooniswap: return is not enough");
         dst.uniTransfer(msg.sender, result);
 
-        // Update virtual balances to the opposit direction
-        virtualBalancesForRemoval[src].update(srcRemovalBalance);
-        virtualBalancesForAddition[dst].update(dstAdditionBalance);
         // Update virtual balances to the same direction only at imbalanced state
         if (srcAdditonBalance != balances.src) {
-            virtualBalancesForAddition[src].update(srcAdditonBalance.add(confirmed));
+            virtualBalancesForAddition[src].set(srcAdditonBalance.add(confirmed));
         }
         if (dstRemovalBalance != balances.dst) {
-            virtualBalancesForRemoval[dst].update(dstRemovalBalance.sub(result));
+            virtualBalancesForRemoval[dst].set(dstRemovalBalance.sub(result));
         }
+
+        // Update virtual balances to the opposite direction
+        virtualBalancesForRemoval[src].update(balances.src);
+        virtualBalancesForAddition[dst].update(balances.dst);
 
         emit Swapped(msg.sender, address(src), address(dst), confirmed, balances.src, balances.dst, result, referral);
 
