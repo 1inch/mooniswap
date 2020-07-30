@@ -62,7 +62,7 @@ library UniERC20 {
         }
 
         if (!success) {
-            return toHex(address(token));
+            return _toHex(address(token));
         }
 
         uint len = 0;
@@ -78,14 +78,14 @@ library UniERC20 {
         return string(result);
     }
 
-    function toHex(address account) private pure returns(string memory) {
-        return toHex(abi.encodePacked(account));
+    function _toHex(address account) private pure returns(string memory) {
+        return _toHex(abi.encodePacked(account));
     }
 
-    function toHex(bytes memory data) private pure returns(string memory) {
+    function _toHex(bytes memory data) private pure returns(string memory) {
         bytes memory str = new bytes(2 + data.length * 2);
-        str[0] = '0';
-        str[1] = 'x';
+        str[0] = "0";
+        str[1] = "x";
         uint j = 2;
         for (uint i = 0; i < data.length; i++) {
             uint a = uint8(data[i]) >> 4;
