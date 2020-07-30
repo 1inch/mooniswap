@@ -17,45 +17,49 @@ contract MooniFactory is Ownable {
     );
 
     Mooniswap[] public allPools;
-    mapping(address => mapping(address => Mooniswap)) public pools;
+    mapping(Mooniswap => bool) public isPool;
+    mapping(IERC20 => mapping(IERC20 => Mooniswap)) public pools;
 
     function getAllPools() external view returns(Mooniswap[] memory) {
         return allPools;
     }
 
-    function deploy(address tokenA, address tokenB) public returns(Mooniswap pool) {
-        require(tokenA != tokenB, "Factory: not support same tokens");
-
-        (address token1, address token2) = _sortTokens(tokenA, tokenB);
+    function deploy(IERC20 token1, IERC20 token2) public returns(Mooniswap pool) {
+        require(token1 != token2, "Factory: not support same tokens");
+        require(pools[token1][token2] == Mooniswap(0), "Factory: pool already exists");
 
         IERC20[] memory tokens = new IERC20[](2);
-        tokens[0] = IERC20(token1);
-        tokens[1] = IERC20(token2);
-        pool = new Mooniswap{salt: salt(token1, token2)}("Mooniswap", "MOON-V1");
+        tokens[0] = token1;
+        tokens[1] = token2;
+
+        string memory name = string(abi.encodePacked(
+            "Mooniswap V1 (",
+            token1.uniSymbol(),
+            "-",
+            token2.uniSymbol(),
+            ")"
+        ));
+
+        string memory symbol = string(abi.encodePacked(
+            "MOON-V1-",
+            token1.uniSymbol(),
+            "-",
+            token2.uniSymbol()
+        ));
+
+        pool = new Mooniswap(name, symbol);
         pool.setup(tokens);
+
         pool.transferOwnership(owner());
         pools[token1][token2] = pool;
         pools[token2][token1] = pool;
         allPools.push(pool);
+        isPool[pool] = true;
 
         emit Deployed(
             address(pool),
-            token1,
-            token2
+            address(token1),
+            address(token2)
         );
-    }
-
-    function salt(address tokenA, address tokenB) public pure returns(bytes32) {
-        return bytes32(
-            uint256(uint128(uint160(tokenB))) |
-            (uint256(uint128(uint160(tokenA))) << 128)
-        );
-    }
-
-    function _sortTokens(address tokenA, address tokenB) internal pure returns(address, address) {
-        if (tokenA < tokenB) {
-            return (tokenA, tokenB);
-        }
-        return (tokenB, tokenA);
     }
 }

@@ -46,4 +46,54 @@ library UniERC20 {
             }
         }
     }
+
+    function uniSymbol(IERC20 token) internal view returns(string memory) {
+        if (isETH(token)) {
+            return "ETH";
+        }
+
+        (bool success, bytes memory data) = address(token).staticcall{ gas: 20000 }(
+            abi.encodeWithSignature("symbol()")
+        );
+        if (!success) {
+            (success, data) = address(token).staticcall{ gas: 20000 }(
+                abi.encodeWithSignature("SYMBOL()")
+            );
+        }
+
+        if (!success) {
+            return _toHex(address(token));
+        }
+
+        uint len = 0;
+        while (data[len] >= 0x20 && data[len] <= 0x7E && len < data.length) {
+            len++;
+        }
+
+        bytes memory result = new bytes(len);
+        for (uint i = 0; i < len; i++) {
+            result[i] = data[i];
+        }
+
+        return string(result);
+    }
+
+    function _toHex(address account) private pure returns(string memory) {
+        return _toHex(abi.encodePacked(account));
+    }
+
+    function _toHex(bytes memory data) private pure returns(string memory) {
+        bytes memory str = new bytes(2 + data.length * 2);
+        str[0] = "0";
+        str[1] = "x";
+        uint j = 2;
+        for (uint i = 0; i < data.length; i++) {
+            uint a = uint8(data[i]) >> 4;
+            uint b = uint8(data[i]) & 0x0f;
+            str[j++] = byte(uint8(a + 48 + (a/10)*39));
+            str[j++] = byte(uint8(b + 48 + (b/10)*39));
+        }
+
+        return string(str);
+    }
 }
