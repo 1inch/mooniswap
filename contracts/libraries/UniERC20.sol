@@ -82,15 +82,16 @@ library UniERC20 {
         return toHex(abi.encodePacked(account));
     }
 
-    function toHex(bytes memory data) public pure returns(string memory) {
-        bytes memory alphabet = "0123456789abcdef";
-
+    function toHex(bytes memory data) private pure returns(string memory) {
         bytes memory str = new bytes(2 + data.length * 2);
         str[0] = '0';
         str[1] = 'x';
+        uint j = 2;
         for (uint i = 0; i < data.length; i++) {
-            str[2 + i*2] = alphabet[uint(uint8(data[i] >> 4))];
-            str[3 + i*2] = alphabet[uint(uint8(data[i] & 0x0f))];
+            uint a = uint8(data[i]) >> 4;
+            uint b = uint8(data[i]) & 0x0f;
+            str[j++] = byte(uint8(a + 48 + (a/10)*39));
+            str[j++] = byte(uint8(b + 48 + (b/10)*39));
         }
 
         return string(str);
