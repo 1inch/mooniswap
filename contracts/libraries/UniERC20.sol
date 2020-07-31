@@ -61,30 +61,29 @@ library UniERC20 {
             );
         }
 
-        if (!success) {
-            return _toHex(address(token));
-        }
-
-        if (data.length >= 64) {
-            // Support symbols with upto 256 length
-            if (data[33] == 0) {
-                data = abi.decode(data, (bytes));
-            } else {
-                return _toHex(address(token));
+        if (success && data.length >= 96) {
+            (uint256 offset, uint256 len) = abi.decode(data, (uint256, uint256));
+            if (offset == 0x20 && len > 0 && len <= 256) {
+                return string(abi.decode(data, (bytes)));
             }
         }
 
-        uint len = 0;
-        while (len < data.length && data[len] >= 0x20 && data[len] <= 0x7E) {
-            len++;
+        if (success && data.length == 32) {
+            uint len = 0;
+            while (len < data.length && data[len] >= 0x20 && data[len] <= 0x7E) {
+                len++;
+            }
+
+            if (len > 0) {
+                bytes memory result = new bytes(len);
+                for (uint i = 0; i < len; i++) {
+                    result[i] = data[i];
+                }
+                return string(result);
+            }
         }
 
-        bytes memory result = new bytes(len);
-        for (uint i = 0; i < len; i++) {
-            result[i] = data[i];
-        }
-
-        return string(result);
+        return _toHex(address(token));
     }
 
     function _toHex(address account) private pure returns(string memory) {
