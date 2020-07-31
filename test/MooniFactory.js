@@ -73,7 +73,7 @@ contract('MooniFactory', function ([_, wallet1, wallet2]) {
             const pool = await Mooniswap.at(await this.factory.pools(token1.address, token2.address));
             expect(await pool.symbol()).to.be.equal('MOON-V1-caps1-caps2');
             expect(await pool.name()).to.be.equal('Mooniswap V1 (caps1-caps2)');
-        })
+        });
     });
 
     describe('Creation', async function () {
