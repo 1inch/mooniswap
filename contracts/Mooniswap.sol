@@ -219,8 +219,6 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         virtualBalancesForRemoval[src].update(balances.src);
         virtualBalancesForAddition[dst].update(balances.dst);
 
-        emit Swapped(msg.sender, address(src), address(dst), confirmed, result, balances.src, balances.dst, totalSupply(), referral);
-
         if (referral != address(0)) {
             uint256 invariantRatio = uint256(1e36);
             invariantRatio = invariantRatio.mul(balances.src.add(confirmed)).div(balances.src);
@@ -230,6 +228,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
                 _mint(referral, referralShare);
             }
         }
+
+        emit Swapped(msg.sender, address(src), address(dst), confirmed, result, balances.src, balances.dst, totalSupply(), referral);
     }
 
     function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
