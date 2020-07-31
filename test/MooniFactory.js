@@ -5,6 +5,8 @@ const Mooniswap = artifacts.require('Mooniswap');
 const MooniFactory = artifacts.require('MooniFactory');
 const TokenWithBytes32SymbolMock = artifacts.require('TokenWithBytes32SymbolMock');
 const TokenWithStringSymbolMock = artifacts.require('TokenWithStringSymbolMock');
+const TokenWithBytes32CAPSSymbolMock = artifacts.require('TokenWithBytes32CAPSSymbolMock');
+const TokenWithStringCAPSSymbolMock = artifacts.require('TokenWithStringCAPSSymbolMock');
 const TokenWithNoSymbolMock = artifacts.require('TokenWithNoSymbolMock');
 
 contract('MooniFactory', function ([_, wallet1, wallet2]) {
@@ -62,6 +64,16 @@ contract('MooniFactory', function ([_, wallet1, wallet2]) {
             expect(await pool.symbol()).to.be.equal('MOON-V1-' + token1.address.toLowerCase() + '-XYZ');
             expect(await pool.name()).to.be.equal('Mooniswap V1 (' + token1.address.toLowerCase() + '-XYZ)');
         });
+
+        it('should handle tokens with CAPS symbol', async function () {
+            const token1 = await TokenWithBytes32CAPSSymbolMock.new(web3.utils.toHex('caps1'));
+            const token2 = await TokenWithStringCAPSSymbolMock.new('caps2');
+            await this.factory.deploy(token1.address, token2.address);
+
+            const pool = await Mooniswap.at(await this.factory.pools(token1.address, token2.address));
+            expect(await pool.symbol()).to.be.equal('MOON-V1-caps1-caps2');
+            expect(await pool.name()).to.be.equal('Mooniswap V1 (caps1-caps2)');
+        })
     });
 
     describe('Creation', async function () {
