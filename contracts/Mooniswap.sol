@@ -55,7 +55,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         uint256 dst;
     }
 
-    struct AccumulatedSwaps {
+    struct SwapVolumes {
         uint128 confirmed;
         uint128 result;
     }
@@ -86,8 +86,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     uint256 public constant BASE_SUPPLY = 1000;  // Total supply on first deposit
 
     IERC20[] public tokens;
-    mapping(IERC20 => AccumulatedSwaps) public accumulators;
     mapping(IERC20 => bool) public isToken;
+    mapping(IERC20 => SwapVolumes) public volumes;
     mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForAddition;
     mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForRemoval;
 
@@ -244,8 +244,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         emit Swapped(msg.sender, address(src), address(dst), confirmed, result, balances.src, balances.dst, totalSupply(), referral);
 
         // Overflow of uint128 is desired
-        accumulators[src].confirmed += uint128(confirmed);
-        accumulators[src].result += uint128(result);
+        volumes[src].confirmed += uint128(confirmed);
+        volumes[src].result += uint128(result);
     }
 
     function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
