@@ -575,5 +575,18 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal('4');
             });
         });
+
+        describe('Attacks', async function () {
+            it('should round virtual balances correctly', async function () {
+                await this.mooniswap.deposit(['1000', '1000'], '1', { from: wallet1 });
+                expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal('99000');
+                await timeIncreaseTo((await time.latest()).add(await this.mooniswap.decayPeriod()));
+                await this.mooniswap.withdraw('90123', [], { from: wallet1 });
+                expect(await this.mooniswap.totalSupply()).to.be.bignumber.equal('9877');
+                expect(await this.DAI.balanceOf(this.mooniswap.address)).to.be.bignumber.equal('99');
+                expect(await this.mooniswap.getBalanceForAddition(this.DAI.address)).to.be.bignumber.equal('99');
+                expect(await this.mooniswap.getBalanceForRemoval(this.DAI.address)).to.be.bignumber.equal('99');
+            });
+        });
     });
 });

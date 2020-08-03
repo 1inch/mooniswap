@@ -31,7 +31,7 @@ library VirtualBalance {
     }
 
     function scale(VirtualBalance.Data storage self, uint256 realBalance, uint256 num, uint256 denom) internal {
-        set(self, current(self, realBalance).mul(num).div(denom));
+        set(self, current(self, realBalance).mul(num).add(denom.sub(1)).div(denom));
     }
 
     function current(VirtualBalance.Data memory self, uint256 realBalance) internal view returns(uint256) {
