@@ -124,13 +124,13 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     }
 
     function deposit(uint256[] memory amounts, uint256 minReturn) external payable nonReentrant returns(uint256 fairSupply) {
-        require(amounts.length == tokens.length, "Mooniswap: wrong amounts length");
-        require((msg.value > 0) == (tokens[0].isETH() || tokens[1].isETH()), "Mooniswap: wrong value usage");
-
         IERC20[] memory _tokens = tokens;
+        require(amounts.length == _tokens.length, "Mooniswap: wrong amounts length");
+        require(msg.value == (_tokens[0].isETH() ? amounts[0] : (_tokens[1].isETH() ? amounts[1] : 0)), "Mooniswap: wrong value usage");
+
         uint256[] memory realBalances = new uint256[](amounts.length);
         for (uint i = 0; i < realBalances.length; i++) {
-            realBalances[i] = _tokens[i].uniBalanceOf(address(this)).sub(_tokens[i].isETH() ? amounts[i] : 0);
+            realBalances[i] = _tokens[i].uniBalanceOf(address(this)).sub(_tokens[i].isETH() ? msg.value : 0);
         }
 
         uint256 totalSupply = totalSupply();
@@ -193,7 +193,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     }
 
     function swap(IERC20 src, IERC20 dst, uint256 amount, uint256 minReturn, address referral) external payable nonReentrant returns(uint256 result) {
-        require((msg.value == amount) == src.isETH(), "Mooniswap: wrong value usage");
+        require(msg.value == (src.isETH() ? amount : 0), "Mooniswap: wrong value usage");
 
         Balances memory balances = Balances({
             src: src.uniBalanceOf(address(this)).sub(src.isETH() ? msg.value : 0),
