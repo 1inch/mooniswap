@@ -24,10 +24,11 @@ contract MooniFactory is Ownable {
         return allPools;
     }
 
-    function deploy(IERC20 token1, IERC20 token2) public returns(Mooniswap pool) {
-        require(token1 != token2, "Factory: not support same tokens");
-        require(pools[token1][token2] == Mooniswap(0), "Factory: pool already exists");
+    function deploy(IERC20 tokenA, IERC20 tokenB) public returns(Mooniswap pool) {
+        require(tokenA != tokenB, "Factory: not support same tokens");
+        require(pools[tokenA][tokenB] == Mooniswap(0), "Factory: pool already exists");
 
+        (IERC20 token1, IERC20 token2) = sortTokens(tokenA, tokenB);
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = token1;
         tokens[1] = token2;
@@ -52,5 +53,12 @@ contract MooniFactory is Ownable {
             address(token1),
             address(token2)
         );
+    }
+
+    function sortTokens(IERC20 tokenA, IERC20 tokenB) public view returns(IERC20, IERC20) {
+        if (tokenA < tokenB) {
+            return (tokenA, tokenB);
+        }
+        return (tokenB, tokenA);
     }
 }

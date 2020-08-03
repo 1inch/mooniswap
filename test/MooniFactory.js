@@ -31,8 +31,8 @@ contract('MooniFactory', function ([_, wallet1, wallet2]) {
             await this.factory.deploy(token1.address, token2.address);
 
             const pool = await Mooniswap.at(await this.factory.pools(token1.address, token2.address));
-            expect(await pool.symbol()).to.be.equal('MOON-V1-012345678901234567890123456789123-XYZ');
-            expect(await pool.name()).to.be.equal('Mooniswap V1 (012345678901234567890123456789123-XYZ)');
+            expect(await pool.symbol()).to.be.equal('MOON-V1-XYZ-012345678901234567890123456789123');
+            expect(await pool.name()).to.be.equal('Mooniswap V1 (XYZ-012345678901234567890123456789123)');
         });
 
         it('should handle tokens without symbol', async function () {
@@ -51,8 +51,8 @@ contract('MooniFactory', function ([_, wallet1, wallet2]) {
             await this.factory.deploy(token1.address, token2.address);
 
             const pool = await Mooniswap.at(await this.factory.pools(token1.address, token2.address));
-            expect(await pool.symbol()).to.be.equal('MOON-V1-' + token1.address.toLowerCase() + '-XYZ');
-            expect(await pool.name()).to.be.equal('Mooniswap V1 (' + token1.address.toLowerCase() + '-XYZ)');
+            expect(await pool.symbol()).to.be.equal('MOON-V1-XYZ-' + token1.address.toLowerCase());
+            expect(await pool.name()).to.be.equal('Mooniswap V1 (XYZ-' + token1.address.toLowerCase() + ')');
         });
 
         it('should handle tokens with empty bytes32 symbol', async function () {
