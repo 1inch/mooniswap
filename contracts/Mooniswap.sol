@@ -226,9 +226,12 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             uint256 invariantRatio = uint256(1e36);
             invariantRatio = invariantRatio.mul(balances.src.add(confirmed)).div(balances.src);
             invariantRatio = invariantRatio.mul(balances.dst.sub(result)).div(balances.dst);
-            uint256 referralShare = invariantRatio.sqrt().sub(1e18).mul(totalSupply()).div(1e18).div(REFERRAL_SHARE);
-            if (referralShare > 0) {
-                _mint(referral, referralShare);
+            if (invariantRatio > 1e36) {
+                // calculate share only if invariant increased
+                uint256 referralShare = invariantRatio.sqrt().sub(1e18).mul(totalSupply()).div(1e18).div(REFERRAL_SHARE);
+                if (referralShare > 0) {
+                    _mint(referral, referralShare);
+                }
             }
         }
 
