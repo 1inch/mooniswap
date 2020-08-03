@@ -110,11 +110,13 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     }
 
     function getBalanceForAddition(IERC20 token) public view returns(uint256) {
-        return virtualBalancesForAddition[token].current(token.uniBalanceOf(address(this)));
+        uint256 balance = token.uniBalanceOf(address(this));
+        return Math.max(virtualBalancesForAddition[token].current(balance), balance);
     }
 
     function getBalanceForRemoval(IERC20 token) public view returns(uint256) {
-        return virtualBalancesForRemoval[token].current(token.uniBalanceOf(address(this)));
+        uint256 balance = token.uniBalanceOf(address(this));
+        return Math.min(virtualBalancesForRemoval[token].current(balance), balance);
     }
 
     function getReturn(IERC20 src, IERC20 dst, uint256 amount) external view returns(uint256) {
@@ -198,8 +200,9 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             dst: dst.uniBalanceOf(address(this))
         });
 
-        uint256 srcAdditonBalance = virtualBalancesForAddition[src].current(balances.src);
-        uint256 dstRemovalBalance = virtualBalancesForRemoval[dst].current(balances.dst);
+        // catch possible airdrops and external balance changes for deflationary tokens
+        uint256 srcAdditonBalance = Math.max(virtualBalancesForAddition[src].current(balances.src), balances.src);
+        uint256 dstRemovalBalance = Math.min(virtualBalancesForRemoval[dst].current(balances.dst), balances.dst);
 
         src.uniTransferFromSenderToThis(amount);
         uint256 confirmed = src.uniBalanceOf(address(this)).sub(balances.src);
