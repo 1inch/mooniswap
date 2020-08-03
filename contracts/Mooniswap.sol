@@ -31,7 +31,7 @@ library VirtualBalance {
     }
 
     function scale(VirtualBalance.Data storage self, uint256 realBalance, uint256 num, uint256 denom) internal {
-        set(self, current(self, realBalance).mul(num).div(denom));
+        set(self, current(self, realBalance).mul(num).add(denom.sub(1)).div(denom));
     }
 
     function current(VirtualBalance.Data memory self, uint256 realBalance) internal view returns(uint256) {
@@ -110,11 +110,13 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
     }
 
     function getBalanceForAddition(IERC20 token) public view returns(uint256) {
-        return virtualBalancesForAddition[token].current(token.uniBalanceOf(address(this)));
+        uint256 balance = token.uniBalanceOf(address(this));
+        return Math.max(virtualBalancesForAddition[token].current(balance), balance);
     }
 
     function getBalanceForRemoval(IERC20 token) public view returns(uint256) {
-        return virtualBalancesForRemoval[token].current(token.uniBalanceOf(address(this)));
+        uint256 balance = token.uniBalanceOf(address(this));
+        return Math.min(virtualBalancesForRemoval[token].current(balance), balance);
     }
 
     function getReturn(IERC20 src, IERC20 dst, uint256 amount) external view returns(uint256) {
@@ -198,8 +200,9 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             dst: dst.uniBalanceOf(address(this))
         });
 
-        uint256 srcAdditonBalance = virtualBalancesForAddition[src].current(balances.src);
-        uint256 dstRemovalBalance = virtualBalancesForRemoval[dst].current(balances.dst);
+        // catch possible airdrops and external balance changes for deflationary tokens
+        uint256 srcAdditonBalance = Math.max(virtualBalancesForAddition[src].current(balances.src), balances.src);
+        uint256 dstRemovalBalance = Math.min(virtualBalancesForRemoval[dst].current(balances.dst), balances.dst);
 
         src.uniTransferFromSenderToThis(amount);
         uint256 confirmed = src.uniBalanceOf(address(this)).sub(balances.src);
@@ -223,9 +226,12 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             uint256 invariantRatio = uint256(1e36);
             invariantRatio = invariantRatio.mul(balances.src.add(confirmed)).div(balances.src);
             invariantRatio = invariantRatio.mul(balances.dst.sub(result)).div(balances.dst);
-            uint256 referralShare = invariantRatio.sqrt().sub(1e18).mul(totalSupply()).div(1e18).div(REFERRAL_SHARE);
-            if (referralShare > 0) {
-                _mint(referral, referralShare);
+            if (invariantRatio > 1e36) {
+                // calculate share only if invariant increased
+                uint256 referralShare = invariantRatio.sqrt().sub(1e18).mul(totalSupply()).div(1e18).div(REFERRAL_SHARE);
+                if (referralShare > 0) {
+                    _mint(referral, referralShare);
+                }
             }
         }
 

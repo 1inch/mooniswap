@@ -575,5 +575,23 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 expect(await this.WETH.balanceOf(this.mooniswap.address)).to.be.bignumber.equal('4');
             });
         });
+
+        describe('Rounding', async function () {
+            for (const i of ['13', '452', '8000', '14991', '98625']) {
+                it('should round virtual balances on withdrawals correctly', async function () {
+                    await this.mooniswap.deposit(['100', '100'], '1', { from: wallet1 });
+                    expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal('99000');
+                    await timeIncreaseTo((await time.latest()).add(await this.mooniswap.decayPeriod()));
+                    await this.mooniswap.withdraw(i, [], { from: wallet1 });
+                    expect(await this.mooniswap.totalSupply()).to.be.bignumber.equal((100000 - i).toString());
+                    const daiBalance = await this.DAI.balanceOf(this.mooniswap.address);
+                    const wethBalance = await this.WETH.balanceOf(this.mooniswap.address);
+                    expect(await this.mooniswap.getBalanceForAddition(this.DAI.address)).to.be.bignumber.equal(daiBalance);
+                    expect(await this.mooniswap.getBalanceForRemoval(this.DAI.address)).to.be.bignumber.equal(daiBalance);
+                    expect(await this.mooniswap.getBalanceForAddition(this.WETH.address)).to.be.bignumber.equal(wethBalance);
+                    expect(await this.mooniswap.getBalanceForRemoval(this.WETH.address)).to.be.bignumber.equal(wethBalance);
+                });
+            }
+        });
     });
 });
