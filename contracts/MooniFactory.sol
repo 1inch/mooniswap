@@ -55,7 +55,7 @@ contract MooniFactory is Ownable {
         );
     }
 
-    function sortTokens(IERC20 tokenA, IERC20 tokenB) public view returns(IERC20, IERC20) {
+    function sortTokens(IERC20 tokenA, IERC20 tokenB) public pure returns(IERC20, IERC20) {
         if (tokenA < tokenB) {
             return (tokenA, tokenB);
         }
