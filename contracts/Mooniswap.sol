@@ -55,6 +55,11 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         uint256 dst;
     }
 
+    struct SwapVolumes {
+        uint128 confirmed;
+        uint128 result;
+    }
+
     event Deposited(
         address indexed account,
         uint256 amount
@@ -82,6 +87,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
 
     IERC20[] public tokens;
     mapping(IERC20 => bool) public isToken;
+    mapping(IERC20 => SwapVolumes) public volumes;
     mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForAddition;
     mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForRemoval;
 
@@ -236,6 +242,10 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         }
 
         emit Swapped(msg.sender, address(src), address(dst), confirmed, result, balances.src, balances.dst, totalSupply(), referral);
+
+        // Overflow of uint128 is desired
+        volumes[src].confirmed += uint128(confirmed);
+        volumes[src].result += uint128(result);
     }
 
     function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
