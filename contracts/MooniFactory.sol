@@ -16,12 +16,20 @@ contract MooniFactory is Ownable {
         address indexed token2
     );
 
+    uint256 public constant MAX_FEE = 0.003e18; // 0.3%
+
+    uint256 public fee;
     Mooniswap[] public allPools;
     mapping(Mooniswap => bool) public isPool;
     mapping(IERC20 => mapping(IERC20 => Mooniswap)) public pools;
 
     function getAllPools() external view returns(Mooniswap[] memory) {
         return allPools;
+    }
+
+    function setFee(uint256 newFee) external onlyOwner {
+        require(newFee <= MAX_FEE, "Factory: fee should be <= 0.3%");
+        fee = newFee;
     }
 
     function deploy(IERC20 tokenA, IERC20 tokenB) public returns(Mooniswap pool) {
@@ -37,10 +45,10 @@ contract MooniFactory is Ownable {
         string memory symbol2 = token2.uniSymbol();
 
         pool = new Mooniswap(
+            tokens,
             string(abi.encodePacked("Mooniswap V1 (", symbol1, "-", symbol2, ")")),
             string(abi.encodePacked("MOON-V1-", symbol1, "-", symbol2))
         );
-        pool.setup(tokens);
 
         pool.transferOwnership(owner());
         pools[token1][token2] = pool;

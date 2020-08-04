@@ -11,6 +11,11 @@ import "./libraries/UniERC20.sol";
 import "./libraries/Sqrt.sol";
 
 
+interface IFactory {
+    function fee() external view returns(uint256);
+}
+
+
 library VirtualBalance {
     using SafeMath for uint256;
 
@@ -84,27 +89,30 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
 
     uint256 public constant REFERRAL_SHARE = 20; // 1/share = 5% of LPs revenue
     uint256 public constant BASE_SUPPLY = 1000;  // Total supply on first deposit
+    uint256 public constant FEE_DENOMINATOR = 1e18;
 
+    IFactory public factory;
     IERC20[] public tokens;
     mapping(IERC20 => bool) public isToken;
     mapping(IERC20 => SwapVolumes) public volumes;
     mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForAddition;
     mapping(IERC20 => VirtualBalance.Data) public virtualBalancesForRemoval;
 
-    constructor(string memory name, string memory symbol) public ERC20(name, symbol) {
+    constructor(IERC20[] memory assets, string memory name, string memory symbol) public ERC20(name, symbol) {
         require(bytes(name).length > 0, "Mooniswap: name is empty");
         require(bytes(symbol).length > 0, "Mooniswap: symbol is empty");
-    }
-
-    function setup(IERC20[] memory assets) external {
-        require(tokens.length == 0, "Mooniswap: already initialized");
         require(assets.length == 2, "Mooniswap: only 2 tokens allowed");
 
+        factory = IFactory(msg.sender);
         tokens = assets;
         for (uint i = 0; i < assets.length; i++) {
             require(!isToken[assets[i]], "Mooniswap: duplicate tokens");
             isToken[assets[i]] = true;
         }
+    }
+
+    function fee() public view returns(uint256) {
+        return factory.fee();
     }
 
     function getTokens() external view returns(IERC20[] memory) {
@@ -264,7 +272,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
 
     function _getReturn(IERC20 src, IERC20 dst, uint256 amount, uint256 srcBalance, uint256 dstBalance) internal view returns(uint256) {
         if (isToken[src] && isToken[dst] && src != dst && amount > 0) {
-            return amount.mul(dstBalance).div(srcBalance.add(amount));
+            uint256 taxedAmount = amount.sub(amount.mul(fee()).div(FEE_DENOMINATOR));
+            return taxedAmount.mul(dstBalance).div(srcBalance.add(taxedAmount));
         }
     }
 }
