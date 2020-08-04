@@ -53,6 +53,7 @@ async function checkBalances (mooniswap, token, expectedBalance, expectedAdditio
     expect(removalBalance).to.be.bignumber.equal(expectedRemovalBalance);
 }
 
+const Factory = artifacts.require('FactoryMock')
 const Mooniswap = artifacts.require('MooniswapMock');
 const Token = artifacts.require('TokenMock');
 
@@ -585,5 +586,31 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 });
             }
         });
+
+        describe('Fee', async function () {
+            beforeEach(async function () {
+                await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet1 });
+                expect(await this.mooniswap.balanceOf(wallet1)).to.be.bignumber.equal(money.dai('270'));
+                await timeIncreaseTo((await time.latest()).add(await this.mooniswap.decayPeriod()));
+            });
+
+            it('should swap with fee', async function () {
+                const result = await this.mooniswap.getReturn(this.WETH.address, this.DAI.address, money.eth('1'));
+                expect(result).to.be.bignumber.equal(money.dai('135'));
+
+                const factory = await Factory.at(await this.mooniswap.factory.call());
+                await factory.setFee(money.weth('0.003'));
+
+                const result2 = await this.mooniswap.getReturn(this.WETH.address, this.DAI.address, money.eth('1'));
+                expect(result2).to.be.bignumber.equal('134797195793690535803');
+
+                const received1 = await trackReceivedToken(
+                    this.DAI,
+                    wallet2,
+                    () => this.mooniswap.swap(this.WETH.address, this.DAI.address, money.weth('1'), money.zero, constants.ZERO_ADDRESS, { from: wallet2 }),
+                );
+                expect(received1).to.be.bignumber.equal('134797195793690535803');
+            });
+        })
     });
 });
