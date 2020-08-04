@@ -53,7 +53,7 @@ async function checkBalances (mooniswap, token, expectedBalance, expectedAdditio
     expect(removalBalance).to.be.bignumber.equal(expectedRemovalBalance);
 }
 
-const Factory = artifacts.require('FactoryMock')
+const Factory = artifacts.require('FactoryMock');
 const Mooniswap = artifacts.require('MooniswapMock');
 const Token = artifacts.require('TokenMock');
 
@@ -611,6 +611,6 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 );
                 expect(received1).to.be.bignumber.equal('134797195793690535803');
             });
-        })
+        });
     });
 });
