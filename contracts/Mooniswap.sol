@@ -165,9 +165,10 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             }
         }
 
+        uint256 fairSupplyCached = fairSupply;
         for (uint i = 0; i < amounts.length; i++) {
             require(amounts[i] > 0, "Mooniswap: amount is zero");
-            _tokens[i].uniTransferFromSenderToThis(totalSupply == 0 ? amounts[i] : realBalances[i].mul(fairSupply).div(totalSupply));
+            _tokens[i].uniTransferFromSenderToThis(totalSupply == 0 ? amounts[i] : realBalances[i].mul(fairSupplyCached).div(totalSupply));
             if (totalSupply > 0) {
                 uint256 confirmed = _tokens[i].uniBalanceOf(address(this)).sub(realBalances[i]);
                 fairSupply = Math.min(fairSupply, totalSupply.mul(confirmed).div(realBalances[i]));
