@@ -265,7 +265,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                     this.mooniswap.address,
                     () => this.mooniswap.deposit(['73470488055448580', '217583468484493826'], money.zero, { from: wallet1 }),
                 );
-                expect(received).to.be.bignumber.equal('217583468484493825');
+                expect(received).to.be.bignumber.equal('217583468484493826');
             });
         });
 
