@@ -256,7 +256,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         volumes[src].result += uint128(result);
     }
 
-    function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
+    function rescueFunds(IERC20 token, uint256 amount) external nonReentrant onlyOwner {
         uint256[] memory balances = new uint256[](tokens.length);
         for (uint i = 0; i < balances.length; i++) {
             balances[i] = tokens[i].uniBalanceOf(address(this));
