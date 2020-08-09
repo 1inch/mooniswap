@@ -256,6 +256,19 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
             });
         });
 
+        describe('Deposits', async function () {
+            it('should work without dust (mitigated with fairSupplyCached)', async function () {
+                await this.mooniswap.deposit(['73185705953920517', '289638863448966403'], money.zero, { from: wallet1 });
+
+                const received = await trackReceivedToken(
+                    this.DAI,
+                    this.mooniswap.address,
+                    () => this.mooniswap.deposit(['73470488055448580', '217583468484493826'], money.zero, { from: wallet1 }),
+                );
+                expect(received).to.be.bignumber.equal('217583468484493826');
+            });
+        });
+
         describe('Swaps', async function () {
             beforeEach(async function () {
                 await this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('270'), { from: wallet1 });
