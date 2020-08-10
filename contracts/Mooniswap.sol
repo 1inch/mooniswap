@@ -149,6 +149,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
 
         uint256 totalSupply = totalSupply();
         if (totalSupply == 0) {
+            require(minReturn == 0, "Mooniswap: minReturn should be 0");
+
             fairSupply = BASE_SUPPLY.mul(99);
             _mint(address(this), BASE_SUPPLY); // Donate up to 1%
 
@@ -158,6 +160,8 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             }
         }
         else {
+            require(minReturn > 0, "Mooniswap: minReturn is 0");
+
             // Pre-compute fair supply
             fairSupply = type(uint256).max;
             for (uint i = 0; i < amounts.length; i++) {
