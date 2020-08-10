@@ -220,18 +220,18 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         });
 
         // catch possible airdrops and external balance changes for deflationary tokens
-        uint256 srcAdditonBalance = Math.max(virtualBalancesForAddition[src].current(balances.src), balances.src);
+        uint256 srcAdditionBalance = Math.max(virtualBalancesForAddition[src].current(balances.src), balances.src);
         uint256 dstRemovalBalance = Math.min(virtualBalancesForRemoval[dst].current(balances.dst), balances.dst);
 
         src.uniTransferFromSenderToThis(amount);
         uint256 confirmed = src.uniBalanceOf(address(this)).sub(balances.src);
-        result = _getReturn(src, dst, confirmed, srcAdditonBalance, dstRemovalBalance);
+        result = _getReturn(src, dst, confirmed, srcAdditionBalance, dstRemovalBalance);
         require(result > 0 && result >= minReturn, "Mooniswap: return is not enough");
         dst.uniTransfer(msg.sender, result);
 
         // Update virtual balances to the same direction only at imbalanced state
-        if (srcAdditonBalance != balances.src) {
-            virtualBalancesForAddition[src].set(srcAdditonBalance.add(confirmed));
+        if (srcAdditionBalance != balances.src) {
+            virtualBalancesForAddition[src].set(srcAdditionBalance.add(confirmed));
         }
         if (dstRemovalBalance != balances.dst) {
             virtualBalancesForRemoval[dst].set(dstRemovalBalance.sub(result));
