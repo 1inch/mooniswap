@@ -137,7 +137,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         return _getReturn(src, dst, amount, getBalanceForAddition(src), getBalanceForRemoval(dst));
     }
 
-    function deposit(uint256[] memory amounts, uint256 minReturn) external payable nonReentrant returns(uint256 fairSupply) {
+    function deposit(uint256[] calldata amounts, uint256[] calldata minAmounts) external payable nonReentrant returns(uint256 fairSupply) {
         IERC20[] memory _tokens = tokens;
         require(amounts.length == _tokens.length, "Mooniswap: wrong amounts length");
         require(msg.value == (_tokens[0].isETH() ? amounts[0] : (_tokens[1].isETH() ? amounts[1] : 0)), "Mooniswap: wrong value usage");
@@ -168,11 +168,11 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
         uint256 fairSupplyCached = fairSupply;
         for (uint i = 0; i < amounts.length; i++) {
             require(amounts[i] > 0, "Mooniswap: amount is zero");
-            _tokens[i].uniTransferFromSenderToThis(
-                totalSupply == 0 ?
-                amounts[i] :
-                realBalances[i].mul(fairSupplyCached).add(totalSupply - 1).div(totalSupply)
-            );
+            uint256 amount = (totalSupply == 0) ? amounts[i] :
+                realBalances[i].mul(fairSupplyCached).add(totalSupply - 1).div(totalSupply);
+            require(amount >= minAmounts[i], "Mooniswap: minAmount not reached");
+
+            _tokens[i].uniTransferFromSenderToThis(amount);
             if (totalSupply > 0) {
                 uint256 confirmed = _tokens[i].uniBalanceOf(address(this)).sub(realBalances[i]);
                 fairSupply = Math.min(fairSupply, totalSupply.mul(confirmed).div(realBalances[i]));
@@ -186,7 +186,7 @@ contract Mooniswap is ERC20, ReentrancyGuard, Ownable {
             }
         }
 
-        require(fairSupply > 0 && fairSupply >= minReturn, "Mooniswap: result is not enough");
+        require(fairSupply > 0, "Mooniswap: result is not enough");
         _mint(msg.sender, fairSupply);
 
         emit Deposited(msg.sender, fairSupply);
