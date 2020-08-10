@@ -5,7 +5,7 @@ const money = {
     ether,
     eth: ether,
     zero: ether('0'),
-    one_wei: ether('0').addn(1),
+    oneWei: ether('0').addn(1),
     weth: ether,
     dai: ether,
     usdc: (value) => ether(value).divn(1e12),
@@ -211,7 +211,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
             });
 
             it('should have non-zero minReturn on non-first deposit', async function () {
-                this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.zero, { from: wallet1 }),
+                this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.zero, { from: wallet1 });
 
                 await expectRevert(
                     this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.zero, { from: wallet1 }),
@@ -220,7 +220,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
             });
 
             it('should check minReturn on deposit', async function () {
-                this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.zero, { from: wallet1 }),
+                this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.zero, { from: wallet1 });
 
                 await expectRevert(
                     this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.dai('271'), { from: wallet2 }),
