@@ -205,7 +205,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
 
             it('should have zero minReturn on first deposit', async function () {
                 await expectRevert(
-                    this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.one_wei, { from: wallet1 }),
+                    this.mooniswap.deposit([money.weth('1'), money.dai('270')], money.oneWei, { from: wallet1 }),
                     'Mooniswap: minReturn should be 0',
                 );
             });
@@ -282,7 +282,7 @@ contract('Mooniswap', function ([_, wallet1, wallet2]) {
                 const received = await trackReceivedToken(
                     this.DAI,
                     this.mooniswap.address,
-                    () => this.mooniswap.deposit(['73470488055448580', '217583468484493826'], money.one_wei, { from: wallet1 }),
+                    () => this.mooniswap.deposit(['73470488055448580', '217583468484493826'], money.oneWei, { from: wallet1 }),
                 );
                 expect(received).to.be.bignumber.equal('217583468484493826');
             });
