@@ -14,7 +14,7 @@ AMM with a beautiful mind
 * @param src address of the source token to exchange
 * @param dst token address that will received
 * @param amount amount to exchange
-* @param minReturn minimal amount of the dst token that will receive (if result < minReturn than transaction fails)
+* @param minReturn minimal amount of the dst token that will receive (if result < minReturn then transaction fails)
 * @param referral 1/20 from LP fees will be minted to referral wallet address (in liquidity token) (in case of address(0) no mints) 
 * @return result received amount
 */
