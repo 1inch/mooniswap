@@ -46,7 +46,7 @@ function withdraw(uint256 amount, uint256[] memory minReturns) external;
 /**
 * @dev will be automatically sorted and written to the storage according to token0 < token1
 * @param tokenA 
-* @param tokenB minimal amounts that will be received to sender address in underlying tokens  (each amount sorted by token0 and token1) 
+* @param tokenB 
 * @return pool created pool address
 */
 function deploy(address tokenA, address tokenB) public returns(address pool);
