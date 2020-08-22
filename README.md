@@ -18,7 +18,7 @@ AMM with a beautiful mind
 * @param referral 1/20 from LP fees will be minted to referral wallet address (in liquidity token) (in case of address(0) no mints) 
 * @return result received amount
 */
-swap(address src, address dst, uint256 amount, uint256 minReturn, address referral) external payable returns(uint256 result);
+function swap(address src, address dst, uint256 amount, uint256 minReturn, address referral) external payable returns(uint256 result);
 ```
 
 ## Deposit
