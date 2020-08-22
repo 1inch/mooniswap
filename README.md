@@ -45,7 +45,7 @@ function withdraw(uint256 amount, uint256[] memory minReturns) external;
 ## Create new pool
 ```solidity
 /**
-* @dev will be automatically sorted and written to the storage according to token0 < token1
+* @dev tokens will be sorted and stored according to token0 < token1
 * @param tokenA 
 * @param tokenB 
 * @return pool created pool address
