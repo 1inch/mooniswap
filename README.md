@@ -36,7 +36,7 @@ function deposit(uint256[] calldata amounts, uint256[] calldata minAmounts) exte
 ```solidity
 /**
 * @param amount amount to burn in exchange for underlying tokens
-* @param minReturns minimal amounts that will be received to sender address in underlying tokens  (each amount sorted by token0 and token1) 
+* @param minReturns minimal amounts that will be transferred to sender address in underlying tokens  (each amount sorted by token0 and token1) 
 */
 function withdraw(uint256 amount, uint256[] memory minReturns) external;
 ```
