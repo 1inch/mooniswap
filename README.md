@@ -24,7 +24,7 @@ swap(address src, address dst, uint256 amount, uint256 minReturn, address referr
 ## Deposit
 ```solidity
 /**
-* @dev Provide liquidity to the pool and earn on trading fees
+* @dev provide liquidity to the pool and earn on trading fees
 * @param amounts [amount0, amount1] for liquidity provision (each amount sorted by token0 and token1) 
 * @param minAmounts minimal amounts that will be charged from sender address to liquidity pool (each amount sorted by token0 and token1) 
 * @return fairSupply received liquidity token amount
